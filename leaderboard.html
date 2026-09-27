@@ -7,11 +7,26 @@
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family: Tahoma, Arial, sans-serif; background:#3A2418; color:#fff; direction:rtl; min-height:100vh; padding:3vw 4vw; }
-  .header { display:flex; align-items:center; gap:16px; margin-bottom:3vw; }
+  .header { display:flex; align-items:center; gap:16px; margin-bottom:2vw; }
   .header img { width:60px; height:60px; border-radius:12px; }
   .header h1 { font-size:2.6vw; color:#F5641E; }
   .header .sub { font-size:1.3vw; opacity:0.75; }
-  table { width:100%; border-collapse:collapse; margin-top:2vw; }
+
+  .alertsBox { margin-bottom:2vw; display:flex; flex-direction:column; gap:1vw; }
+  .alertRow {
+    background:#C62828; border-radius:10px; padding:1.4vw 2vw;
+    display:flex; align-items:center; justify-content:space-between;
+    animation: pulseAlert 1s infinite alternate;
+  }
+  @keyframes pulseAlert { from { background:#C62828; } to { background:#8E1A1A; } }
+  .alertText { font-size:1.6vw; font-weight:800; }
+  .alertMeta { font-size:1.1vw; opacity:0.85; margin-right:1vw; }
+  .dismissBtn {
+    background:#fff; color:#C62828; border:none; border-radius:8px;
+    padding:0.8vw 1.8vw; font-size:1.2vw; font-weight:800; cursor:pointer; font-family:inherit;
+  }
+
+  table { width:100%; border-collapse:collapse; margin-top:1vw; }
   th { text-align:right; font-size:1.4vw; color:#F5641E; padding:1vw 1.5vw; border-bottom:2px solid #F5641E; }
   td { font-size:1.8vw; padding:1.4vw 1.5vw; border-bottom:1px solid rgba(255,255,255,0.08); }
   .rank { font-weight:900; color:#F5641E; width:4vw; }
@@ -20,9 +35,11 @@
   .bar-fill { background:linear-gradient(90deg,#F5641E,#FFB347); height:100%; border-radius:20px; transition:width 0.6s ease; }
   .empty { text-align:center; opacity:0.5; padding:6vw; font-size:2vw; }
   .updated { position:fixed; bottom:1.5vw; left:2vw; font-size:1vw; opacity:0.5; }
+
   @media (max-width:700px) {
     .header h1 { font-size:5vw; } .header .sub { font-size:3vw; }
     th { font-size:3vw; } td { font-size:3.6vw; } .bar-bg { height:3vw; } .updated { font-size:2.4vw; }
+    .alertText { font-size:3.4vw; } .alertMeta { font-size:2.6vw; } .dismissBtn { font-size:2.6vw; padding:1.6vw 3vw; }
   }
 </style>
 </head>
@@ -35,6 +52,8 @@
     <div class="sub">تحديث تلقائي كل 5 ثوانٍ</div>
   </div>
 </div>
+
+<div class="alertsBox" id="alertsBox"></div>
 
 <table id="board">
   <thead>
@@ -51,24 +70,86 @@
 const SHEET_URL = "https://script.google.com/macros/s/AKfycbwuQjOie_E77cZvpWNBRGTWyIrvi5YUsOtY6z1OhMB43Op1H2C2KbG4dVFx_g3Mx_oS/exec";
 const TOTAL_STATIONS = 15;
 
+let seenReports = null; // null = not yet initialized (first load, don't alarm on old reports)
+let activeAlerts = []; // { key, team, station, timestamp }
+
+function reportKey(r) { return r.team + '|' + r.station + '|' + r.timestamp; }
+
+function playAlarm() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'square';
+      o.frequency.setValueAtTime(880, t);
+      g.gain.setValueAtTime(0.2, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      o.start(t); o.stop(t + 0.25);
+      t += 0.32;
+    }
+  } catch (e) {}
+}
+
+function renderAlerts() {
+  const box = document.getElementById('alertsBox');
+  box.innerHTML = activeAlerts.map(function(a) {
+    const time = new Date(a.timestamp).toLocaleTimeString('ar-EG');
+    return '<div class="alertRow" data-key="' + a.key + '">' +
+      '<div><span class="alertText">🚨 مشكلة — فريق: ' + a.team + '</span>' +
+      '<span class="alertMeta">المحطة: ' + (a.station || 'غير معروفة') + ' — ' + time + '</span></div>' +
+      '<button class="dismissBtn" onclick="dismissAlert(\'' + a.key + '\')">تم الحل ✅</button>' +
+    '</div>';
+  }).join('');
+}
+
+function dismissAlert(key) {
+  activeAlerts = activeAlerts.filter(function(a) { return a.key !== key; });
+  renderAlerts();
+}
+
 async function refresh() {
   try {
     const res = await fetch(SHEET_URL, { method: 'GET' });
     const data = await res.json();
+
+    // --- team table ---
     const rows = document.getElementById('rows');
     if (!data.teams || data.teams.length === 0) {
       rows.innerHTML = '<tr><td colspan="4" class="empty">في انتظار أول فريق يسجل الدخول...</td></tr>';
-      return;
+    } else {
+      rows.innerHTML = data.teams.map(function(t, i) {
+        const pct = Math.round((t.completed / TOTAL_STATIONS) * 100);
+        return '<tr>' +
+          '<td class="rank">' + (i + 1) + '</td>' +
+          '<td>' + t.team + '</td>' +
+          '<td>' + t.completed + ' / ' + TOTAL_STATIONS + '</td>' +
+          '<td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%"></div></div></td>' +
+        '</tr>';
+      }).join('');
     }
-    rows.innerHTML = data.teams.map(function(t, i) {
-      const pct = Math.round((t.completed / TOTAL_STATIONS) * 100);
-      return '<tr>' +
-        '<td class="rank">' + (i + 1) + '</td>' +
-        '<td>' + t.team + '</td>' +
-        '<td>' + t.completed + ' / ' + TOTAL_STATIONS + '</td>' +
-        '<td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%"></div></div></td>' +
-      '</tr>';
-    }).join('');
+
+    // --- report alerts ---
+    const reports = data.reports || [];
+    const currentKeys = reports.map(reportKey);
+
+    if (seenReports === null) {
+      // first load: mark everything already in the sheet as seen, don't alarm on history
+      seenReports = new Set(currentKeys);
+    } else {
+      const newOnes = reports.filter(function(r) { return !seenReports.has(reportKey(r)); });
+      if (newOnes.length > 0) {
+        playAlarm();
+        newOnes.forEach(function(r) {
+          activeAlerts.push({ key: reportKey(r), team: r.team, station: r.station, timestamp: r.timestamp });
+          seenReports.add(reportKey(r));
+        });
+        renderAlerts();
+      }
+    }
+
     document.getElementById('updatedAt').textContent = 'آخر تحديث: ' + new Date().toLocaleTimeString('ar-EG');
   } catch (e) {
     document.getElementById('updatedAt').textContent = 'تعذر التحديث — سيُعاد المحاولة تلقائيًا';
