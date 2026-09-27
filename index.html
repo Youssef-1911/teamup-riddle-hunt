@@ -73,6 +73,15 @@
     #finished .sub { font-size:18px; }
     .reportBtn { font-size:14px; padding:10px 20px; }
   }
+
+  .tuToast {
+    position: fixed; bottom: 14vw; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #2E7D32; color: #fff; padding: 3.5vw 6vw; border-radius: 30px;
+    font-size: 3.8vw; font-weight: 700; z-index: 1500; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease; text-align: center; max-width: 85vw;
+  }
+  .tuToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (min-width: 500px) { .tuToast { font-size: 15px; padding: 14px 26px; } }
 </style>
 </head>
 <body>
@@ -385,7 +394,25 @@ function changeTeam() {
 function reportProblem() {
   const hash = (location.hash || '').replace('#', '') || 'unknown';
   logToSheet({ action: 'report', team: getTeamName() || 'غير مسجل', station: hash, timestamp: new Date().toISOString() });
-  alert('تم إرسال البلاغ، سيصل أحد المنظمين قريبًا 🙏');
+  showToast('✅ تم إرسال البلاغ، سيصل أحد المنظمين قريبًا 🙏');
+}
+
+function showToast(message) {
+  let toast = document.getElementById('tuToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'tuToast';
+    toast.className = 'tuToast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.remove('show');
+  void toast.offsetWidth; // restart animation if tapped repeatedly
+  toast.classList.add('show');
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(function() {
+    toast.classList.remove('show');
+  }, 3500);
 }
 
 function playSound(correct) {
