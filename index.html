@@ -136,6 +136,41 @@
   .state-icon.neutral { background: var(--bg); color: var(--ink-2); }
   .state h2 { font-size: 26px; font-weight: 700; color: var(--black); margin-bottom: 8px; }
   .state p { color: var(--muted); font-size: 16px; }
+  .scan-btn { margin-top: 28px; gap: 10px; }
+  .scan-btn svg { width: 22px; height: 22px; }
+  .scan-note { margin-top: 12px; text-align: center; color: var(--muted); font-size: 14px; }
+  .home .scan-btn { margin-top: 26px; }
+
+  /* In-page QR scanner */
+  .scanner { position: fixed; inset: 0; z-index: 3000; background: #000; color: var(--white); overflow: hidden; }
+  .scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .scan-frame {
+    position: absolute; top: 46%; left: 50%; width: min(68vw, 62vh, 300px); aspect-ratio: 1;
+    transform: translate(-50%, -50%); border-radius: 24px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .55);
+  }
+  .scan-frame i { position: absolute; width: 38px; height: 38px; border: 5px solid var(--orange); }
+  .scan-frame i:nth-child(1) { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 24px; }
+  .scan-frame i:nth-child(2) { top: -2px; right: -2px; border-left: 0; border-bottom: 0; border-top-right-radius: 24px; }
+  .scan-frame i:nth-child(3) { bottom: -2px; left: -2px; border-right: 0; border-top: 0; border-bottom-left-radius: 24px; }
+  .scan-frame i:nth-child(4) { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 24px; }
+  .scan-line { position: absolute; left: 10%; right: 10%; height: 2px; background: var(--orange); box-shadow: 0 0 12px var(--orange); animation: scanline 2.2s ease-in-out infinite; }
+  @keyframes scanline { 0%, 100% { top: 12%; } 50% { top: 88%; } }
+  .scan-top {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between;
+    padding: calc(14px + env(safe-area-inset-top)) 16px 14px; background: linear-gradient(rgba(0, 0, 0, .6), transparent);
+  }
+  .scan-top img { height: 22px; width: auto; }
+  .scan-close { height: 40px; padding: 0 18px; border-radius: 999px; border: 0; background: var(--white); color: var(--black); font-weight: 700; font-size: 15px; }
+  .scan-hint {
+    position: absolute; left: 16px; right: 16px; bottom: calc(36px + env(safe-area-inset-bottom)); z-index: 2;
+    text-align: center; font-size: 17px; font-weight: 600; text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+  }
+  .scan-hint.warn { color: #FFD3C2; }
+  .scan-error { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; z-index: 1; }
+  .scan-error > div { background: var(--white); color: var(--ink); border-radius: var(--radius-lg); padding: 24px; max-width: 360px; text-align: center; }
+  .scan-error h3 { font-size: 19px; margin-bottom: 8px; }
+  .scan-error p { color: var(--muted); font-size: 15px; margin-bottom: 18px; }
+
   .next-card {
     margin-top: 26px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius);
     display: flex; align-items: center; gap: 14px; text-align: start;
@@ -400,8 +435,9 @@ async function loadHome(token) {
     <div class="grid">${data.stations.map(s =>
       `<div class="cell ${s.solved ? 'done' : ''}" title="المحطة ${s.position}">${s.solved ? ICON.check.replace('<svg', '<svg width="20" height="20"') : s.position}</div>`).join('')}</div>
     <div class="legend"><span><i style="background:var(--black)"></i>مكتملة</span><span><i style="background:var(--bg);border:1px solid var(--line)"></i>متبقية</span></div>
-    <div class="next-card">${ICON.scan}<div><b>امسحوا كود المحطة التالية</b><span>أكملتم ${data.solved} من ${data.total} محطة</span></div></div>
+    ${scanButton(`أكملتم ${data.solved} من ${data.total} محطة`)}
   </div>`);
+  wireScanButton();
 }
 
 // ─── finished ───
@@ -432,7 +468,8 @@ async function loadStation(stationId, token) {
       <div class="state-icon neutral">${data.error === 'closed' ? ICON.lock : ICON.scan}</div>
       <h2>${data.error === 'closed' ? 'هذه المحطة مغلقة حاليًا' : 'كود غير معروف'}</h2>
       <p>${data.error === 'closed' ? 'تواصلوا مع أحد المنظمين أو انتقلوا لمحطة أخرى.' : 'امسحوا كود المحطة مرة أخرى.'}</p>
-    </div>`);
+      ${scanButton()}
+    </div>`), wireScanButton();
   }
 
   saveTeam({ id: data.team.id, name: data.team.name });
@@ -447,8 +484,9 @@ function renderSolved(station, progress, already) {
     <div class="state-icon ok">${ICON.check}</div>
     <h2>${already ? 'أكملتم هذه المحطة' : 'إجابة صحيحة!'}</h2>
     <p>${already ? 'لقد أكملتم هذه المحطة بالفعل.' : 'تم حفظ تقدمكم بنجاح.'}</p>
-    <div class="next-card">${ICON.scan}<div><b>انتقلوا إلى المحطة التالية</b><span>أكملتم ${progress.solved} من ${progress.total} محطة</span></div></div>
+    ${scanButton(`أكملتم ${progress.solved} من ${progress.total} محطة`)}
   </div>`);
+  wireScanButton();
 }
 
 function questionHead(st) {
@@ -640,6 +678,140 @@ function wireQuestion(st) {
         onError: () => { btn.disabled = false; },
       });
     };
+  }
+}
+
+// ─── in-page QR scanner ───
+function scanButton(note) {
+  return `<button class="btn btn-lg btn-block scan-btn" type="button" id="scanNext">${ICON.scan}<span>امسحوا كود المحطة التالية</span></button>
+    ${note ? `<p class="scan-note">${note}</p>` : ''}`;
+}
+function wireScanButton() {
+  const b = document.getElementById('scanNext');
+  if (b) b.onclick = openScanner;
+  loadJsQR().catch(() => {});   // warm up so the camera opens fast
+}
+
+let jsqrPromise = null;
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  return jsqrPromise ||= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'assets/vendor/jsQR.js';
+    s.onload = resolve;
+    s.onerror = () => { jsqrPromise = null; reject(new Error('jsQR failed to load')); };
+    document.head.appendChild(s);
+  });
+}
+
+let scanner = null;
+async function openScanner() {
+  if (scanner) return;
+  const el = document.createElement('div');
+  el.className = 'scanner';
+  el.innerHTML = `
+    <video playsinline muted autoplay></video>
+    <div class="scan-frame"><i></i><i></i><i></i><i></i><div class="scan-line"></div></div>
+    <div class="scan-top"><img src="assets/logo-white.png" alt="TEAM-UP"><button class="scan-close" type="button">إغلاق</button></div>
+    <div class="scan-hint">وجّهوا الكاميرا نحو كود المحطة</div>`;
+  document.body.appendChild(el);
+  const video = el.querySelector('video');
+  const hint = el.querySelector('.scan-hint');
+  let stream = null, raf = 0, stopped = false;
+
+  const onHide = () => { if (document.hidden) close(); };
+  function close() {
+    if (stopped) return;
+    stopped = true;
+    cancelAnimationFrame(raf);
+    stream?.getTracks().forEach(t => t.stop());
+    el.remove();
+    scanner = null;
+    window.removeEventListener('hashchange', close);
+    document.removeEventListener('visibilitychange', onHide);
+  }
+  scanner = { close };
+  el.querySelector('.scan-close').onclick = close;
+  window.addEventListener('hashchange', close);
+  document.addEventListener('visibilitychange', onHide);
+
+  const fail = (title, text) => {
+    if (stopped) return;
+    hint.hidden = true;
+    el.querySelector('.scan-frame').hidden = true;
+    const box = document.createElement('div');
+    box.className = 'scan-error';
+    box.innerHTML = `<div><h3>${title}</h3><p>${text}</p><button class="btn btn-lg btn-block" type="button">حسنًا</button></div>`;
+    box.querySelector('button').onclick = close;
+    el.appendChild(box);
+  };
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return fail('الكاميرا غير متاحة', 'هذا المتصفح لا يدعم فتح الكاميرا. استخدموا كاميرا الهاتف لمسح الكود.');
+  }
+  try {
+    const [s] = await Promise.all([
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }),
+      loadJsQR(),
+    ]);
+    stream = s;
+    if (stopped) { s.getTracks().forEach(t => t.stop()); return; }
+    video.srcObject = s;
+    await video.play().catch(() => {});
+  } catch (e) {
+    if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
+      return fail('لم يُسمح باستخدام الكاميرا', 'اسمحوا للموقع باستخدام الكاميرا من إعدادات المتصفح، أو استخدموا كاميرا الهاتف لمسح الكود.');
+    }
+    if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError') {
+      return fail('لم يتم العثور على كاميرا', 'استخدموا كاميرا الهاتف لمسح الكود.');
+    }
+    return fail('تعذر فتح الكاميرا', 'حاولوا مرة أخرى، أو استخدموا كاميرا الهاتف لمسح الكود.');
+  }
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let last = 0;
+  const tick = (t) => {
+    if (stopped) return;
+    raf = requestAnimationFrame(tick);
+    if (t - last < 120 || video.readyState < 2 || !video.videoWidth) return;
+    last = t;
+    const scale = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+    if (code?.data) onCode(code.data.trim());
+  };
+  raf = requestAnimationFrame(tick);
+
+  function onCode(text) {
+    const m = text.match(/(ev2-station\d+)/);
+    if (m) {
+      navigator.vibrate?.(60);
+      close();
+      if (location.hash === '#' + m[1]) route(); else location.hash = m[1];
+      return;
+    }
+    let u = null;
+    try { u = new URL(text); } catch {}
+    if (u && /^https?:$/.test(u.protocol)) {
+      navigator.vibrate?.(60);
+      close();
+      const here = new URL(location.href);
+      const samePage = u.origin === here.origin &&
+        u.pathname.replace(/index\.html$/, '') === here.pathname.replace(/index\.html$/, '');
+      if (samePage) {
+        // the registration / home code of this game
+        if (location.hash) location.hash = ''; else route();
+      } else {
+        location.href = text;   // e.g. a short link that redirects to a station
+      }
+      return;
+    }
+    hint.textContent = 'هذا الكود لا يخص اللعبة — امسحوا كود المحطة';
+    hint.classList.add('warn');
   }
 }
 

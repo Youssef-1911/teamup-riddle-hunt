@@ -322,7 +322,6 @@
         <div><h1>Live game</h1><p>Updates automatically every few seconds.</p></div>
         <div class="toolbar">
           <a class="btn btn-ghost btn-sm" href="leaderboard.html" target="_blank" rel="noopener">Open leaderboard screen</a>
-          <button class="btn btn-ghost btn-sm" id="exportBtn">Export CSV</button>
         </div>
       </div>
       <div class="stats">
@@ -662,19 +661,6 @@ function alarm() {
     }
   } catch {}
 }
-
-$('exportBtn').onclick = () => {
-  if (!live) return;
-  const head = ['Rank', 'Team', 'Solved', 'Total', 'Wrong answers', 'Current station', 'Registered', 'Finished'];
-  const lines = live.teams.map((t, i) => [i + 1, t.name, t.solved, live.total, t.wrong, t.current_position || '',
-    new Date(t.created_at).toLocaleString(), t.finished_at ? new Date(t.finished_at).toLocaleString() : '']);
-  const csv = [head, ...lines].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `teamup-results-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-};
 
 // ─── team drawer ───
 function openTeam(id) {
