@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>TEAM-UP Admin</title>
+<link rel="icon" type="image/png" href="assets/mark-orange.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/brand.css">
+<script src="assets/config.js"></script>
+<style>
+  body { font-size: 15px; }
+
+  /* Login */
+  .login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--black); }
+  .login-card { width: 100%; max-width: 380px; background: var(--white); border-radius: var(--radius-lg); padding: 34px 28px; box-shadow: var(--shadow-lg); }
+  .login-card img { height: 30px; width: auto; margin-bottom: 28px; }
+  .login-card h1 { font-size: 22px; margin-bottom: 4px; }
+  .login-card p { color: var(--muted); margin-bottom: 22px; }
+  .login-card .input { margin-bottom: 12px; }
+  .kb-toggle { display: block; margin: 6px auto 0; padding: 10px 6px; min-height: 40px; font-size: 13px; color: var(--muted); font-weight: 500; }
+  .kb-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .kb-row .btn-link { font-size: 13px; color: var(--muted); font-weight: 500; padding: 10px 4px; min-height: 40px; }
+  .m-meta { display: none; }
+  .form-error { color: var(--red); font-size: 14px; font-weight: 600; min-height: 20px; margin-top: 10px; }
+
+  /* Top bar */
+  .bar { position: sticky; top: 0; z-index: 100; background: var(--black); color: var(--white); }
+  .bar-inner { max-width: 1280px; margin: 0 auto; padding: 0 20px; height: 60px; display: flex; align-items: center; gap: 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; flex: none; }
+  .brand img { height: 22px; width: auto; }
+  .brand span { color: rgba(255, 255, 255, .55); font-weight: 500; padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, .2); }
+  .tabs { display: flex; gap: 4px; height: 100%; }
+  .tab {
+    background: none; border: 0; color: rgba(255, 255, 255, .62); font-weight: 600; padding: 0 12px; height: 100%;
+    position: relative; display: flex; align-items: center; gap: 8px;
+  }
+  .tab:hover { color: var(--white); }
+  .tab.active { color: var(--white); }
+  .tab.active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--orange); }
+  .tab .count { background: var(--red); color: var(--white); font-size: 11px; border-radius: 99px; min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; }
+  .bar-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .live-dot { display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255, 255, 255, .7); }
+  .live-dot i { width: 8px; height: 8px; border-radius: 50%; background: #3ccf7a; box-shadow: 0 0 0 0 rgba(60, 207, 122, .6); animation: pulse 2s infinite; }
+  .live-dot.off i { background: var(--red); animation: none; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(60, 207, 122, 0); } 100% { box-shadow: 0 0 0 0 rgba(60, 207, 122, 0); } }
+  .bar .btn-ghost { color: var(--white); border-color: rgba(255, 255, 255, .25); }
+  .bar .btn-ghost:hover { background: rgba(255, 255, 255, .08); }
+  .lo-icon { display: none; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 28px 20px 80px; }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .page-head h1 { font-size: 24px; letter-spacing: -.01em; }
+  .page-head p { color: var(--muted); }
+  .section-title { font-size: 16px; font-weight: 700; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .card-body { padding: 20px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .stat { padding: 16px 18px; }
+  .stat-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .stat-value { font-size: 30px; font-weight: 700; line-height: 1.2; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat-value small { font-size: 15px; color: var(--muted); font-weight: 600; }
+  .stat.alert .stat-value { color: var(--red); }
+
+  /* Reports */
+  .reports { display: grid; gap: 10px; margin-bottom: 18px; }
+  .report-row {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--radius);
+    background: var(--red-soft); border: 1px solid #f5c2bc;
+  }
+  .report-row.new { animation: flash 1s ease-in-out 3; }
+  @keyframes flash { 50% { background: #f9d3ce; } }
+  .report-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--red); color: var(--white); display: grid; place-items: center; flex: none; }
+  .report-icon svg { width: 18px; height: 18px; }
+  .report-text { flex: 1; min-width: 0; }
+  .report-text b { display: block; }
+  .report-text span { color: var(--ink-2); font-size: 14px; }
+
+  /* Table */
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search { width: 240px; min-height: 38px; padding: 8px 12px; font-size: 14px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 12px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; background: #FCFBFA; }
+  td { padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+  tbody tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover { background: #FBFAF8; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .rank { width: 44px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rank.top { color: var(--orange-strong); }
+  .team-cell { font-weight: 700; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .prog { display: flex; align-items: center; gap: 12px; min-width: 200px; }
+  .prog-bar { flex: 1; height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .prog-bar span { display: block; height: 100%; background: var(--orange); border-radius: inherit; transition: width .5s var(--ease); }
+  .prog-bar.full span { background: var(--green); }
+  .prog b { font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .empty { padding: 56px 20px; text-align: center; color: var(--muted); }
+  .empty b { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+
+  /* Drawer */
+  .scrim { position: fixed; inset: 0; background: rgba(17, 17, 17, .4); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); background: var(--white); z-index: 301;
+    transform: translateX(100%); transition: transform .28s var(--ease); display: flex; flex-direction: column; box-shadow: var(--shadow-lg);
+  }
+  .drawer.open { transform: none; }
+  .drawer-head { padding: 20px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: flex-start; gap: 12px; }
+  .drawer-head h2 { font-size: 20px; overflow-wrap: anywhere; }
+  .drawer-body { padding: 22px; overflow-y: auto; flex: 1; }
+  .drawer-foot { padding: 16px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; flex-wrap: wrap; }
+  .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--white); display: grid; place-items: center; flex: none; margin-left: auto; }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+  .kv div { background: var(--bg); border-radius: var(--radius-sm); padding: 12px 14px; }
+  .kv span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .kv b { font-size: 16px; }
+  .st-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .st-cell {
+    aspect-ratio: 1; border-radius: 10px; border: 1.5px solid var(--line); background: var(--white);
+    display: grid; place-items: center; font-weight: 700; color: var(--muted); position: relative;
+  }
+  .st-cell:hover { border-color: var(--black); }
+  .st-cell.solved { background: var(--black); border-color: var(--black); color: var(--white); }
+  .st-cell.open { border-color: var(--orange); color: var(--orange-strong); }
+  .st-cell.here::after { content: ''; position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--orange); }
+  .st-cell.inactive { opacity: .35; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1.5px solid var(--line); }
+
+  /* Questions */
+  .q-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  .q-list { padding: 8px; position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow-y: auto; }
+  .q-item {
+    width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; background: none; border: 0;
+    padding: 10px; border-radius: var(--radius-sm); transition: background .12s;
+  }
+  .q-item:hover { background: var(--bg); }
+  .q-item.active { background: var(--black); color: var(--white); }
+  .q-num { width: 32px; height: 32px; border-radius: 9px; background: var(--bg); display: grid; place-items: center; font-weight: 700; flex: none; color: var(--ink); }
+  .q-item.active .q-num { background: var(--orange); color: var(--white); }
+  .q-meta { min-width: 0; flex: 1; }
+  .q-meta .q-type, .q-meta .q-prompt { display: block; }
+  .q-meta .q-prompt { text-align: left; }
+  .q-meta .q-type { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .q-item.active .q-type { color: rgba(255, 255, 255, .65); }
+  .q-meta .q-prompt { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tag-off { font-size: 11px; background: var(--red-soft); color: var(--red); border-radius: 6px; padding: 0 6px; }
+  .q-item.dirty .q-num::after { content: ''; }
+
+  .editor { overflow: hidden; }
+  .editor-head { padding: 20px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .editor-head h2 { font-size: 20px; }
+  .editor-head code { font-size: 13px; background: var(--bg); padding: 3px 8px; border-radius: 6px; color: var(--ink-2); }
+  .editor-head .grow { flex: 1; }
+  .editor-body { padding: 24px; display: grid; gap: 24px; }
+  .field > label, .field-label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--ink); }
+  .help { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--bg); border-radius: 12px; }
+  .seg button { border: 0; background: none; padding: 9px 14px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+  .seg button svg { width: 16px; height: 16px; }
+  .seg button:hover { color: var(--ink); }
+  .seg button.on { background: var(--white); color: var(--black); box-shadow: var(--shadow-sm); }
+
+  .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; user-select: none; }
+  .switch input { appearance: none; width: 50px; height: 30px; border-radius: 99px; background: var(--line-strong); position: relative; transition: background .15s; cursor: pointer; margin: 0; }
+  .switch input::after { content: ''; position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--white); transition: transform .15s var(--ease); box-shadow: var(--shadow-sm); }
+  .switch input:checked { background: var(--green); }
+  .switch input:checked::after { transform: translateX(20px); }
+
+  .opt-rows { display: grid; gap: 8px; }
+  .opt-row { display: flex; align-items: center; gap: 8px; }
+  .opt-row .input { min-height: 44px; }
+  .opt-row .idx { width: 30px; text-align: center; font-weight: 700; color: var(--muted); flex: none; }
+  .radio { appearance: none; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line-strong); flex: none; cursor: pointer; margin: 0 4px; display: grid; place-items: center; }
+  .radio:checked { border-color: var(--green); background: var(--green); box-shadow: inset 0 0 0 6px var(--white); }
+  .opt-row.correct .input { border-color: var(--green); background: var(--green-soft); }
+  .mini { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--white); display: grid; place-items: center; flex: none; color: var(--ink-2); }
+  .mini:hover:not(:disabled) { border-color: var(--black); color: var(--black); }
+  .mini:disabled { opacity: .35; cursor: default; }
+  .mini svg { width: 16px; height: 16px; }
+  .add-btn { margin-top: 10px; }
+  .tf-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 420px; }
+  .tf-pick button { min-height: 64px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--white); font-weight: 700; font-size: 16px; }
+  .tf-pick button.on { border-color: var(--green); background: var(--green-soft); color: var(--green); }
+  .code-field { max-width: 260px; font-size: 20px; letter-spacing: .15em; font-weight: 700; }
+  .notice { display: flex; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg); color: var(--ink-2); font-size: 14px; }
+  .notice svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--muted); }
+  .hint-after { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+  .hint-after .input { width: 72px; min-height: 38px; text-align: center; padding: 6px; }
+
+  .editor-foot { position: sticky; bottom: 0; padding: 14px 24px; border-top: 1px solid var(--line); background: var(--white); display: flex; align-items: center; gap: 10px; }
+  .save-state { margin-right: auto; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .save-state.dirty { color: var(--amber); font-weight: 600; }
+  .save-state.err { color: var(--red); font-weight: 600; }
+
+  /* Settings */
+  .settings { display: grid; gap: 18px; max-width: 860px; }
+  .settings .card-body { display: grid; gap: 16px; }
+  .qr-table td { white-space: normal; cursor: default; }
+  .qr-table tr { cursor: default; }
+  .qr-table tr:hover { background: none; }
+  .qr-url { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; color: var(--ink-2); word-break: break-all; }
+  .danger { border-color: #f1c4be; }
+  .danger .card-head { background: var(--red-soft); border-color: #f1c4be; }
+
+  /* Modal */
+  .modal { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; padding: 16px; background: rgba(17, 17, 17, .45); }
+  .modal-card { width: 100%; max-width: 440px; background: var(--white); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-lg); }
+  .modal-card h3 { font-size: 19px; margin-bottom: 8px; }
+  .modal-card p { color: var(--ink-2); margin-bottom: 16px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+  @media (max-width: 1000px) {
+    .q-layout { grid-template-columns: 1fr; }
+    .q-list { position: static; max-height: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .bar-inner { gap: 12px; padding: 0 12px; }
+    .brand span, .live-dot { display: none; }
+    .brand img { height: 18px; }
+    .tab { padding: 0 8px; font-size: 14px; }
+    .tab.active::after { left: 8px; right: 8px; }
+    .bar-right .btn { padding: 0 10px; }
+    main { padding: 20px 12px 80px; }
+    .row2 { grid-template-columns: 1fr; }
+    .search { width: 100%; font-size: 16px; }
+    .card-head .search { flex: 1 1 100%; }
+    /* teams table becomes stacked cards */
+    table.teams thead { display: none; }
+    table.teams tbody tr { display: grid; grid-template-columns: 26px minmax(0, 1fr); grid-template-areas: "rank name" ". prog" ". meta" ". status"; gap: 8px 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    table.teams td.c-status { justify-self: start; }
+    table.teams td.team-cell { overflow-wrap: anywhere; }
+    table.teams tbody tr:last-child { border-bottom: 0; }
+    table.teams td { padding: 0; border: 0; white-space: normal; }
+    table.teams td.rank { grid-area: rank; width: auto; align-self: center; }
+    table.teams td.team-cell { grid-area: name; align-self: center; max-width: none; }
+    table.teams td.c-status { grid-area: status; }
+    table.teams td.c-prog { grid-area: prog; }
+    table.teams .prog { min-width: 0; }
+    table.teams td.c-station, table.teams td.c-wrong, table.teams td.c-last { display: none; }
+    table.teams td.m-meta { display: block; grid-area: meta; font-size: 13px; color: var(--muted); }
+    table.teams td[colspan] { grid-column: 1 / -1; }
+    .editor-body, .editor-head { padding: 18px; }
+    .hide-sm { display: none; }
+  }
+  @media (max-width: 720px) {
+    .report-row { flex-wrap: wrap; }
+    .report-row .report-text { flex: 1 1 calc(100% - 50px); overflow-wrap: anywhere; }
+    .report-row .btn { width: 100%; }
+    .editor-foot { flex-wrap: wrap; padding: 12px 16px; }
+    .save-state { flex: 1 1 100%; margin-right: 0; }
+    .editor-foot .btn { flex: 1; }
+    .hint-after { flex-wrap: wrap; }
+    .qr-table tr { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "label copy" "url url"; gap: 4px 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+    .qr-table td { padding: 0; border: 0; width: auto !important; }
+    .qr-table td:nth-child(1) { grid-area: label; align-self: center; }
+    .qr-table td:nth-child(2) { grid-area: url; }
+    .qr-table td:nth-child(3) { grid-area: copy; }
+  }
+  @media (max-width: 440px) {
+    /* editor rows: number + text on the first line, controls underneath */
+    .opt-row .input { min-width: 0; }
+    .opt-row:has(.idx) { flex-wrap: wrap; }
+    .opt-row:has(.idx) .input { flex: 1 1 calc(100% - 46px); }
+    .opt-row:has(.idx) .mini:first-of-type { margin-left: 38px; }
+    .bar-inner { gap: 6px; }
+    .brand img { content: url('assets/mark-white.png'); height: 24px; }
+    .tab { padding: 0 7px; font-size: 14px; }
+    .tab.active::after { left: 7px; right: 7px; }
+    .lo-text { display: none; }
+    .lo-icon { display: block; }
+    #logoutBtn { padding: 0; width: 38px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login" id="loginView">
+  <form class="login-card" id="loginForm" novalidate>
+    <img src="assets/logo-black.png" alt="TEAM-UP">
+    <h1>Admin sign in</h1>
+    <p>Manage questions and follow teams live.</p>
+    <input class="input" id="pw" type="password" placeholder="Admin password" autocomplete="current-password" inputmode="numeric" autofocus required>
+    <button class="btn btn-lg btn-block" id="loginBtn" type="submit">Sign in</button>
+    <button class="btn-link kb-toggle" id="kbToggle" type="button"></button>
+    <div class="form-error" id="loginError"></div>
+  </form>
+</div>
+
+<!-- App -->
+<div id="appView" hidden>
+  <header class="bar">
+    <div class="bar-inner">
+      <div class="brand"><img src="assets/logo-white.png" alt="TEAM-UP"><span>Admin</span></div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="live">Live <span class="count" id="reportCount" hidden></span></button>
+        <button class="tab" data-tab="questions">Questions</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </nav>
+      <div class="bar-right">
+        <div class="live-dot" id="liveDot"><i></i><span id="liveText">Live</span></div>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn" aria-label="Sign out" title="Sign out"><span class="lo-text">Sign out</span><svg class="lo-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LIVE -->
+    <section id="tab-live">
+      <div class="page-head">
+        <div><h1>Live game</h1><p>Updates automatically every few seconds.</p></div>
+        <div class="toolbar">
+          <a class="btn btn-ghost btn-sm" href="leaderboard.html" target="_blank" rel="noopener">Open leaderboard screen</a>
+          <button class="btn btn-ghost btn-sm" id="exportBtn">Export CSV</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="card stat"><div class="stat-label">Teams</div><div class="stat-value" id="sTeams">–</div></div>
+        <div class="card stat"><div class="stat-label">Active now</div><div class="stat-value" id="sActive">–</div></div>
+        <div class="card stat"><div class="stat-label">Finished</div><div class="stat-value" id="sFinished">–</div></div>
+        <div class="card stat" id="sReportsCard"><div class="stat-label">Open reports</div><div class="stat-value" id="sReports">–</div></div>
+      </div>
+      <div class="reports" id="reports"></div>
+      <div class="card">
+        <div class="card-head">
+          <div class="section-title">Teams</div>
+          <input class="input search" id="search" placeholder="Search teams…" dir="auto">
+        </div>
+        <div class="table-wrap">
+          <table class="teams">
+            <thead><tr><th>#</th><th>Team</th><th>Progress</th><th>Current station</th><th>Wrong answers</th><th>Last activity</th><th>Status</th></tr></thead>
+            <tbody id="teamRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUESTIONS -->
+    <section id="tab-questions" hidden>
+      <div class="page-head">
+        <div><h1>Questions</h1><p>One question per printed QR code. Changes go live for players as soon as you save.</p></div>
+      </div>
+      <div class="q-layout">
+        <div class="card q-list" id="qList"></div>
+        <div class="card editor" id="editor"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" hidden>
+      <div class="page-head"><div><h1>Settings</h1><p>Texts shown to players, QR links and admin access.</p></div></div>
+      <div class="settings">
+        <div class="card">
+          <div class="card-head"><div class="section-title">Player screen texts</div></div>
+          <div class="card-body">
+            <div class="field"><label for="setTitle">Event title (registration screen)</label><input class="input" id="setTitle" dir="auto"></div>
+            <div class="field"><label for="setHome">Home message (after registering)</label><input class="input" id="setHome" dir="auto"></div>
+            <div class="row2">
+              <div class="field"><label for="setFinishTitle">Finish screen title</label><input class="input" id="setFinishTitle" dir="auto"></div>
+              <div class="field"><label for="setFinishMsg">Finish screen message</label><textarea class="textarea" id="setFinishMsg" dir="auto"></textarea></div>
+            </div>
+            <div><button class="btn" id="saveTexts">Save texts</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div class="section-title">QR code links</div><span class="sub">These must match the printed codes. Don't change them.</span></div>
+          <div class="table-wrap"><table class="qr-table"><tbody id="qrRows"></tbody></table></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div class="section-title">Admin password</div></div>
+          <form class="card-body" id="pwForm">
+            <div class="row2">
+              <div class="field"><label for="newPw">New password</label><input class="input" id="newPw" type="password" autocomplete="new-password" minlength="4" required></div>
+              <div class="field"><label for="newPw2">Repeat new password</label><input class="input" id="newPw2" type="password" autocomplete="new-password" minlength="4" required></div>
+            </div>
+            <div><button class="btn" type="submit">Change password</button></div>
+          </form>
+        </div>
+
+        <div class="card danger">
+          <div class="card-head"><div class="section-title">Danger zone</div></div>
+          <div class="card-body">
+            <p>Reset the game before a new event: deletes <b>all teams, progress and reports</b>. Questions and settings are kept.</p>
+            <div><button class="btn btn-danger" id="resetGame">Reset game…</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+import { rpc } from './assets/api.js';
+
+const PUBLIC_URL = 'https://youssef-1911.github.io/teamup-riddle-hunt/';
+const PW_KEY = 'teamup.admin';
+const POLL_MS = 4000;
+const TYPES = {
+  mcq:       { name: 'Multiple choice', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><path d="M10 6h10M10 12h10M10 18h10"/></svg>' },
+  order:     { name: 'Ordering', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>' },
+  pin:       { name: 'PIN code', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 12h.01M12 12h.01M17 12h.01"/></svg>' },
+  truefalse: { name: 'True / False', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 12 3 3 6-6M14 9l6 6M20 9l-6 6"/></svg>' },
+  mission:   { name: 'Photo mission', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>' },
+};
+const I = {
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4c1.5-1 3-1.5 5-1.5 3 0 4 2 7 2 1.5 0 2.7-.3 3.6-.8V15c-.9.5-2.1.8-3.6.8-3 0-4-2-7-2-2 0-3.5.5-5 1.5"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+  ext: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+};
+
+let pw = sessionStorage.getItem(PW_KEY) || '';
+let live = null;
+let stations = [];
+let settings = {};
+let currentTab = 'live';
+let pollTimer = null;
+let knownReports = null;
+let openTeamId = null;
+let selectedId = null;
+let draft = null;
+
+const $ = (id) => document.getElementById(id);
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+function ago(ts) {
+  if (!ts) return '—';
+  const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
+  if (s < 30) return 'just now';
+  if (s < 90) return '1 min ago';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  return new Date(ts).toLocaleDateString();
+}
+function clock(ts) {
+  return ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+}
+
+// Every admin call goes through here: a wrong/changed password signs out.
+async function admin(fn, ...args) {
+  const res = await rpc(fn, pw, ...args);
+  if (res && res.error === 'auth') { logout('Your session expired. Please sign in again.'); throw new Error('auth'); }
+  return res;
+}
+
+function confirmBox({ title, body = '', confirm = 'Confirm', danger = false, requireText = null, input = null }) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.className = 'modal';
+    wrap.innerHTML = `<form class="modal-card">
+      <h3>${esc(title)}</h3>${body ? `<p>${body}</p>` : ''}
+      ${requireText ? `<input class="input" id="mInput" placeholder="Type ${esc(requireText)} to confirm" autocomplete="off">` : ''}
+      ${input ? `<input class="input" id="mInput" value="${esc(input.value || '')}" dir="auto" maxlength="40">` : ''}
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" data-x>Cancel</button>
+        <button class="btn ${danger ? 'btn-danger' : ''}" type="submit" id="mOk" ${requireText ? 'disabled' : ''}>${esc(confirm)}</button>
+      </div></form>`;
+    document.body.appendChild(wrap);
+    const field = wrap.querySelector('#mInput');
+    const ok = wrap.querySelector('#mOk');
+    if (field) {
+      field.focus(); field.select?.();
+      if (requireText) field.oninput = () => { ok.disabled = field.value.trim() !== requireText; };
+    } else ok.focus();
+    const done = (v) => { wrap.remove(); resolve(v); };
+    wrap.querySelector('[data-x]').onclick = () => done(null);
+    wrap.onclick = (e) => { if (e.target === wrap) done(null); };
+    wrap.querySelector('form').onsubmit = (e) => { e.preventDefault(); done(input ? field.value.trim() : true); };
+    wrap.onkeydown = (e) => { if (e.key === 'Escape') done(null); };
+  });
+}
+
+// ─── keyboards ───
+// Numeric fields open the number keypad on phones; a small link switches to the full keyboard.
+const KB_KEY = 'teamup.pwKeyboard';
+function setKeyboard(input, numeric) {
+  input.inputMode = numeric ? 'numeric' : 'text';
+  if (numeric) input.setAttribute('pattern', '[0-9]*'); else input.removeAttribute('pattern');
+}
+function loginKeyboard(numeric) {
+  setKeyboard($('pw'), numeric);
+  $('kbToggle').textContent = numeric ? 'Password has letters? Use the full keyboard' : 'Use the number keypad';
+  try { localStorage.setItem(KB_KEY, numeric ? 'numeric' : 'text'); } catch {}
+}
+let loginNumeric = true;
+try { loginNumeric = localStorage.getItem(KB_KEY) !== 'text'; } catch {}
+loginKeyboard(loginNumeric);
+$('kbToggle').onclick = () => { loginNumeric = !loginNumeric; loginKeyboard(loginNumeric); $('pw').focus(); };
+
+// For code fields in the editor: number keypad unless the current code contains letters.
+function codeField(input) {
+  const numeric = /^[0-9]*$/.test(input.value);
+  setKeyboard(input, numeric);
+  const link = document.createElement('button');
+  link.type = 'button'; link.className = 'btn-link';
+  const label = () => { link.textContent = input.inputMode === 'numeric' ? 'Code has letters? Use full keyboard' : 'Use number keypad'; };
+  link.onclick = () => { setKeyboard(input, input.inputMode !== 'numeric'); label(); input.blur(); input.focus(); };
+  label();
+  const row = document.createElement('div'); row.className = 'kb-row';
+  input.replaceWith(row); row.append(input, link);
+}
+
+// ─── auth ───
+$('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('loginBtn');
+  if (!$('pw').value) { $('pw').focus(); return; }
+  btn.disabled = true; $('loginError').textContent = '';
+  try {
+    const res = await rpc('admin_login', $('pw').value);
+    if (!res.ok) { $('loginError').textContent = 'Wrong password. (Too many attempts lock sign-in for 10 minutes.)'; return; }
+    pw = $('pw').value;
+    sessionStorage.setItem(PW_KEY, pw);
+    start();
+  } catch (err) {
+    $('loginError').textContent = 'Could not reach the database. ' + (err.message || '');
+  } finally { btn.disabled = false; }
+};
+function logout(msg) {
+  pw = ''; sessionStorage.removeItem(PW_KEY);
+  clearInterval(pollTimer);
+  $('appView').hidden = true; $('loginView').hidden = false;
+  $('pw').value = '';
+  $('loginError').textContent = msg || '';
+}
+$('logoutBtn').onclick = () => logout();
+
+async function start() {
+  $('loginView').hidden = true; $('appView').hidden = false;
+  showTab(location.hash.replace('#', '') || 'live');
+  refreshLive();
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => { if (!document.hidden) refreshLive(); }, POLL_MS);
+  loadStations();
+  loadSettings();
+}
+
+// ─── tabs ───
+function showTab(name) {
+  if (!['live', 'questions', 'settings'].includes(name)) name = 'live';
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  ['live', 'questions', 'settings'].forEach(n => $('tab-' + n).hidden = n !== name);
+  history.replaceState(null, '', '#' + name);
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  if (currentTab === 'questions' && t.dataset.tab !== 'questions' && isDirty() && !confirm('You have unsaved changes to this question. Leave anyway?')) return;
+  showTab(t.dataset.tab);
+});
+
+// ─── LIVE ───
+async function refreshLive() {
+  try {
+    const data = await admin('admin_live');
+    live = data;
+    $('liveDot').classList.remove('off'); $('liveText').textContent = 'Live';
+    renderLive();
+  } catch (err) {
+    if (err.message === 'auth') return;
+    $('liveDot').classList.add('off'); $('liveText').textContent = 'Reconnecting…';
+  }
+}
+
+function stationNo(id) {
+  const s = live?.stations.find(x => x.id === id) || stations.find(x => x.id === id);
+  return s ? s.position : '?';
+}
+
+function renderLive() {
+  const teams = live.teams;
+  const activeCut = Date.now() - 5 * 60 * 1000;
+  $('sTeams').textContent = teams.length;
+  $('sActive').textContent = teams.filter(t => !t.finished_at && new Date(t.last_seen).getTime() > activeCut).length;
+  $('sFinished').innerHTML = `${teams.filter(t => t.finished_at).length} <small>/ ${teams.length}</small>`;
+  $('sReports').textContent = live.reports.length;
+  $('sReportsCard').classList.toggle('alert', live.reports.length > 0);
+  $('reportCount').hidden = !live.reports.length;
+  $('reportCount').textContent = live.reports.length;
+  document.title = (live.reports.length ? `(${live.reports.length}) ` : '') + 'TEAM-UP Admin';
+
+  // reports + alarm for new ones
+  const ids = live.reports.map(r => r.id);
+  const fresh = knownReports ? ids.filter(id => !knownReports.has(id)) : [];
+  if (fresh.length) alarm();
+  knownReports = new Set(ids);
+  $('reports').innerHTML = live.reports.map(r => `
+    <div class="report-row ${fresh.includes(r.id) ? 'new' : ''}">
+      <div class="report-icon">${I.flag}</div>
+      <div class="report-text"><b><bdi>${esc(r.team_name)}</bdi> needs help</b>
+        <span>${r.position ? 'Station ' + r.position : 'Unknown station'} · ${ago(r.created_at)} (${clock(r.created_at)})</span></div>
+      <button class="btn btn-sm" data-resolve="${r.id}">Mark resolved</button>
+    </div>`).join('');
+  $('reports').querySelectorAll('[data-resolve]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await admin('admin_resolve_report', b.dataset.resolve); refreshLive(); } catch { b.disabled = false; }
+  });
+
+  // teams table
+  const q = $('search').value.trim().toLowerCase();
+  const total = live.total;
+  const rows = teams.map((t, i) => ({ t, rank: i + 1 })).filter(({ t }) => !q || t.name.toLowerCase().includes(q));
+  $('teamRows').innerHTML = rows.length ? rows.map(({ t, rank }) => {
+    const pct = total ? Math.round(t.solved / total * 100) : 0;
+    const idle = Date.now() - new Date(t.last_seen).getTime() > 10 * 60 * 1000;
+    const status = t.finished_at
+      ? `<span class="chip chip-green">Finished ${clock(t.finished_at)}</span>`
+      : idle ? '<span class="chip">Idle</span>' : '<span class="chip chip-orange">Playing</span>';
+    return `<tr data-team="${t.id}">
+      <td class="rank ${rank <= 3 ? 'top' : ''}">${rank}</td>
+      <td class="team-cell"><bdi>${esc(t.name)}</bdi></td>
+      <td class="c-prog"><div class="prog"><div class="prog-bar ${t.solved >= total ? 'full' : ''}"><span style="width:${pct}%"></span></div><b>${t.solved}/${total}</b></div></td>
+      <td class="c-station">${t.current_position ? `<b>Station ${t.current_position}</b>` : '<span class="sub">Not started</span>'}</td>
+      <td class="c-wrong">${t.wrong}</td>
+      <td class="c-last"><span class="sub">${ago(t.last_seen)}</span></td>
+      <td class="c-status">${status}</td>
+      <td class="m-meta">${t.current_position ? `<b>Station ${t.current_position}</b>` : 'Not started'} · ${ago(t.last_seen)} · ${t.wrong} wrong</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7"><div class="empty"><b>${teams.length ? 'No team matches your search' : 'No teams yet'}</b>${teams.length ? '' : 'Teams appear here as soon as they register by scanning the first QR code.'}</div></td></tr>`;
+  $('teamRows').querySelectorAll('tr[data-team]').forEach(tr => tr.onclick = () => openTeam(tr.dataset.team));
+
+  if (openTeamId) renderDrawer();
+}
+$('search').oninput = () => live && renderLive();
+
+function alarm() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.type = 'square';
+      o.frequency.setValueAtTime(880, t);
+      g.gain.setValueAtTime(.18, t); g.gain.exponentialRampToValueAtTime(.001, t + .25);
+      o.start(t); o.stop(t + .25); t += .32;
+    }
+  } catch {}
+}
+
+$('exportBtn').onclick = () => {
+  if (!live) return;
+  const head = ['Rank', 'Team', 'Solved', 'Total', 'Wrong answers', 'Current station', 'Registered', 'Finished'];
+  const lines = live.teams.map((t, i) => [i + 1, t.name, t.solved, live.total, t.wrong, t.current_position || '',
+    new Date(t.created_at).toLocaleString(), t.finished_at ? new Date(t.finished_at).toLocaleString() : '']);
+  const csv = [head, ...lines].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `teamup-results-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ─── team drawer ───
+function openTeam(id) {
+  openTeamId = id;
+  renderDrawer();
+  $('drawer').classList.add('open'); $('scrim').classList.add('open');
+  $('drawer').setAttribute('aria-hidden', 'false');
+}
+function closeTeam() {
+  openTeamId = null;
+  $('drawer').classList.remove('open'); $('scrim').classList.remove('open');
+  $('drawer').setAttribute('aria-hidden', 'true');
+}
+$('scrim').onclick = closeTeam;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && openTeamId) closeTeam(); });
+
+function renderDrawer() {
+  const t = live?.teams.find(x => x.id === openTeamId);
+  if (!t) { closeTeam(); return; }
+  const rank = live.teams.indexOf(t) + 1;
+  $('drawer').innerHTML = `
+    <div class="drawer-head">
+      <div><div class="sub">Rank #${rank}</div><h2><bdi>${esc(t.name)}</bdi></h2></div>
+      <button class="icon-btn" id="dClose" aria-label="Close">${I.close}</button>
+    </div>
+    <div class="drawer-body">
+      <div class="kv">
+        <div><span>Solved</span><b>${t.solved} / ${live.total}</b></div>
+        <div><span>Current station</span><b>${t.current_position ? 'Station ' + t.current_position : '—'}</b></div>
+        <div><span>Wrong answers</span><b>${t.wrong}</b></div>
+        <div><span>Last activity</span><b>${ago(t.last_seen)}</b></div>
+        <div><span>Registered</span><b>${clock(t.created_at)}</b></div>
+        <div><span>Finished</span><b>${t.finished_at ? clock(t.finished_at) : '—'}</b></div>
+      </div>
+      <div class="field-label">Stations</div>
+      <div class="st-grid">${live.stations.map(s => {
+        const solved = t.solved_ids.includes(s.id);
+        const open = t.open_ids.includes(s.id);
+        return `<button class="st-cell ${solved ? 'solved' : open ? 'open' : ''} ${t.current_station === s.id ? 'here' : ''} ${s.active ? '' : 'inactive'}"
+          data-st="${s.id}" title="Station ${s.position}: ${solved ? 'solved' : open ? 'opened, not solved' : 'not visited'} — click to ${solved ? 'mark unsolved' : 'mark solved'}">${s.position}</button>`;
+      }).join('')}</div>
+      <div class="legend">
+        <span><i style="background:var(--black);border-color:var(--black)"></i>Solved</span>
+        <span><i style="border-color:var(--orange)"></i>Opened, not solved</span>
+        <span><i></i>Not visited</span>
+        <span><i style="background:var(--orange);border-color:var(--orange);border-radius:50%"></i>Here now</span>
+      </div>
+      <p class="help">Click a station to mark it solved or unsolved by hand (for example after a photo mission).</p>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost btn-sm" id="dRename">Rename</button>
+      <button class="btn btn-ghost btn-sm" id="dReset">Reset progress</button>
+      <button class="btn btn-danger btn-sm" id="dDelete" style="margin-left:auto">Delete team</button>
+    </div>`;
+  $('dClose').onclick = closeTeam;
+  $('drawer').querySelectorAll('[data-st]').forEach(b => b.onclick = async () => {
+    const solved = t.solved_ids.includes(b.dataset.st);
+    const ok = await confirmBox({
+      title: `${solved ? 'Mark unsolved' : 'Mark solved'}: Station ${stationNo(b.dataset.st)}`,
+      body: `For team <b>${esc(t.name)}</b>.`, confirm: solved ? 'Mark unsolved' : 'Mark solved',
+    });
+    if (!ok) return;
+    await teamAction(t.id, solved ? 'unsolve' : 'solve', b.dataset.st);
+  });
+  $('dRename').onclick = async () => {
+    const name = await confirmBox({ title: 'Rename team', input: { value: t.name }, confirm: 'Rename' });
+    if (name) await teamAction(t.id, 'rename', name);
+  };
+  $('dReset').onclick = async () => {
+    const ok = await confirmBox({ title: 'Reset progress?', body: `All solved stations of <b><bdi>${esc(t.name)}</bdi></b> will be cleared. The team stays registered.`, confirm: 'Reset progress', danger: true });
+    if (ok) await teamAction(t.id, 'reset');
+  };
+  $('dDelete').onclick = async () => {
+    const ok = await confirmBox({ title: 'Delete team?', body: `<b><bdi>${esc(t.name)}</bdi></b> and its progress will be removed. Its players will be asked to register again.`, confirm: 'Delete team', danger: true });
+    if (ok) { await teamAction(t.id, 'delete'); closeTeam(); }
+  };
+}
+async function teamAction(id, action, arg = null) {
+  try {
+    const res = await admin('admin_team', id, action, arg);
+    if (res.error) { toast(res.error); return; }
+    toast('Saved');
+    await refreshLive();
+  } catch (err) { if (err.message !== 'auth') toast('Could not save. Check the connection.'); }
+}
+
+// ─── QUESTIONS ───
+async function loadStations() {
+  try {
+    stations = await admin('admin_stations');
+    if (!selectedId && stations.length) selectedId = stations[0].id;
+    renderQList();
+    if (!draft) selectStation(selectedId, true);
+    renderQrLinks();
+  } catch (err) { if (err.message !== 'auth') toast('Could not load questions.'); }
+}
+
+function renderQList() {
+  $('qList').innerHTML = stations.map(s => `
+    <button class="q-item ${s.id === selectedId ? 'active' : ''}" data-id="${s.id}">
+      <span class="q-num">${s.position}</span>
+      <span class="q-meta">
+        <span class="q-type">${esc(TYPES[s.type]?.name || s.type)}${s.label ? ' · <span dir="auto">' + esc(s.label) + '</span>' : ''} ${s.active ? '' : '<span class="tag-off">Closed</span>'}</span>
+        <span class="q-prompt"><bdi>${esc(s.prompt) || '<i>Empty</i>'}</bdi></span>
+      </span>
+    </button>`).join('');
+  $('qList').querySelectorAll('.q-item').forEach(b => b.onclick = () => {
+    if (b.dataset.id === selectedId) return;
+    if (isDirty() && !confirm('You have unsaved changes to this question. Discard them?')) return;
+    selectStation(b.dataset.id);
+  });
+}
+
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+function original() { return stations.find(s => s.id === selectedId); }
+function comparable(s) {
+  return JSON.stringify({ label: s.label, type: s.type, prompt: s.prompt, options: s.options, answer: s.answer ?? null, hint: s.hint, hint_after: Number(s.hint_after), active: s.active });
+}
+function isDirty() { return !!(draft && original() && comparable(draft) !== comparable(original())); }
+
+function selectStation(id, keepScroll) {
+  selectedId = id;
+  const s = original();
+  draft = s ? clone(s) : null;
+  renderQList();
+  renderEditor();
+  if (!keepScroll && window.innerWidth <= 1000) $('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderEditor() {
+  if (!draft) { $('editor').innerHTML = '<div class="empty"><b>Loading…</b></div>'; return; }
+  const d = draft;
+  $('editor').innerHTML = `
+    <div class="editor-head">
+      <h2>Station ${d.position}</h2>
+      <code title="QR code link ending">#${esc(d.id)}</code>
+      <span class="grow"></span>
+      <label class="switch"><input type="checkbox" id="eActive" ${d.active ? 'checked' : ''}><span id="eActiveText">${d.active ? 'Open' : 'Closed'}</span></label>
+      <a class="btn btn-ghost btn-sm" href="index.html#${encodeURIComponent(d.id)}" target="_blank" rel="noopener" title="Opens the player page for this station. Registering there creates a real team — delete it from Live afterwards.">Test as player ${I.ext}</a>
+    </div>
+    <div class="editor-body">
+      <div class="field">
+        <span class="field-label">Question type</span>
+        <div class="seg" id="eType">${Object.entries(TYPES).map(([k, v]) =>
+          `<button type="button" data-type="${k}" class="${d.type === k ? 'on' : ''}">${v.icon}${v.name}</button>`).join('')}</div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="eLabel">Category label</label>
+          <input class="input" id="eLabel" dir="auto" list="labelList" value="${esc(d.label)}" placeholder="e.g. لغز">
+          <datalist id="labelList"><option value="لغز"><option value="سؤال عام"><option value="مهمة تصوير"><option value="ترتيب"><option value="صح أم خطأ"><option value="رمز سري"></datalist>
+          <div class="help">Small tag shown above the question.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="ePrompt">Question</label>
+        <textarea class="textarea" id="ePrompt" dir="auto" rows="3">${esc(d.prompt)}</textarea>
+      </div>
+      <div class="field" id="eAnswer"></div>
+      <div class="field">
+        <label for="eHint">Hint <span class="sub">(optional)</span></label>
+        <textarea class="textarea" id="eHint" dir="auto" rows="2" placeholder="Shown after several wrong answers">${esc(d.hint)}</textarea>
+        <div class="hint-after">Show the hint after <input class="input" id="eHintAfter" type="number" min="0" max="20" value="${d.hint_after}"> wrong answers.</div>
+      </div>
+    </div>
+    <div class="editor-foot">
+      <span class="save-state" id="eState"></span>
+      <button class="btn btn-ghost" id="eDiscard">Discard</button>
+      <button class="btn btn-orange" id="eSave">Save changes</button>
+    </div>`;
+
+  $('eActive').onchange = (e) => { d.active = e.target.checked; $('eActiveText').textContent = d.active ? 'Open' : 'Closed'; updateState(); };
+  $('eLabel').oninput = (e) => { d.label = e.target.value; updateState(); };
+  $('ePrompt').oninput = (e) => { d.prompt = e.target.value; updateState(); };
+  $('eHint').oninput = (e) => { d.hint = e.target.value; updateState(); };
+  $('eHintAfter').oninput = (e) => { d.hint_after = Math.max(0, parseInt(e.target.value || '0', 10)); updateState(); };
+  $('eType').querySelectorAll('button').forEach(b => b.onclick = () => changeType(b.dataset.type));
+  $('eDiscard').onclick = () => { selectStation(selectedId, true); };
+  $('eSave').onclick = saveStation;
+  renderAnswer();
+  updateState();
+}
+
+function changeType(type) {
+  const d = draft;
+  if (d.type === type) return;
+  const textOpts = (d.options || []).map(String).filter(o => o.trim());
+  if (type === 'mcq') {
+    d.options = textOpts.length >= 2 ? textOpts : ['', '', '', ''];
+    d.answer = null;
+  } else if (type === 'order') {
+    d.options = textOpts.length >= 2 ? textOpts : ['', '', '', ''];
+    d.answer = null;
+  } else {
+    d.options = [];
+    d.answer = null;
+  }
+  d.type = type;
+  $('eType').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.type === type));
+  renderAnswer();
+  updateState();
+}
+
+function renderAnswer() {
+  const d = draft;
+  const box = $('eAnswer');
+  if (d.type === 'mcq') {
+    box.innerHTML = `<span class="field-label">Options <span class="sub">— select the correct answer</span></span>
+      <div class="opt-rows">${d.options.map((o, i) => `
+        <div class="opt-row ${d.answer === i ? 'correct' : ''}">
+          <input class="radio" type="radio" name="correct" data-i="${i}" ${d.answer === i ? 'checked' : ''} title="Correct answer">
+          <input class="input" data-opt="${i}" dir="auto" value="${esc(o)}" placeholder="Option ${i + 1}">
+          <button class="mini" data-del="${i}" title="Remove" ${d.options.length <= 2 ? 'disabled' : ''}>${I.trash}</button>
+        </div>`).join('')}</div>
+      ${d.options.length < 8 ? '<button class="btn btn-ghost btn-sm add-btn" id="addOpt">+ Add option</button>' : ''}`;
+    box.querySelectorAll('.radio').forEach(r => r.onchange = () => { d.answer = Number(r.dataset.i); renderAnswer(); updateState(); });
+  } else if (d.type === 'order') {
+    box.innerHTML = `<span class="field-label">Items in the correct order</span>
+      <div class="notice" style="margin-bottom:12px">${I.info}<span>Enter the items from first to last. Players see them shuffled and tap them in order.</span></div>
+      <div class="opt-rows">${d.options.map((o, i) => `
+        <div class="opt-row">
+          <span class="idx">${i + 1}</span>
+          <input class="input" data-opt="${i}" dir="auto" value="${esc(o)}" placeholder="Item ${i + 1}">
+          <button class="mini" data-up="${i}" title="Move up" ${i === 0 ? 'disabled' : ''}>${I.up}</button>
+          <button class="mini" data-down="${i}" title="Move down" ${i === d.options.length - 1 ? 'disabled' : ''}>${I.down}</button>
+          <button class="mini" data-del="${i}" title="Remove" ${d.options.length <= 2 ? 'disabled' : ''}>${I.trash}</button>
+        </div>`).join('')}</div>
+      ${d.options.length < 8 ? '<button class="btn btn-ghost btn-sm add-btn" id="addOpt">+ Add item</button>' : ''}`;
+    box.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { move(Number(b.dataset.up), -1); });
+    box.querySelectorAll('[data-down]').forEach(b => b.onclick = () => { move(Number(b.dataset.down), 1); });
+  } else if (d.type === 'pin') {
+    box.innerHTML = `<label for="ePin">Correct PIN / code</label>
+      <input class="input code-field" id="ePin" dir="ltr" autocomplete="off" value="${esc(d.answer ?? '')}" placeholder="e.g. 4821">
+      <div class="help">Players type this code to answer. Digits only shows a number keypad, and the number of boxes matches the code length. Spaces and letter case are ignored.</div>`;
+    $('ePin').oninput = (e) => { d.answer = e.target.value; updateState(); };
+    codeField($('ePin'));
+  } else if (d.type === 'truefalse') {
+    box.innerHTML = `<span class="field-label">Correct answer</span>
+      <div class="tf-pick">
+        <button type="button" data-tf="true" class="${d.answer === true ? 'on' : ''}">True · صح</button>
+        <button type="button" data-tf="false" class="${d.answer === false ? 'on' : ''}">False · خطأ</button>
+      </div>`;
+    box.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { d.answer = b.dataset.tf === 'true'; renderAnswer(); updateState(); });
+  } else if (d.type === 'mission') {
+    box.innerHTML = `<label for="eCode">Organizer code <span class="sub">(optional)</span></label>
+      <input class="input code-field" id="eCode" dir="ltr" autocomplete="off" value="${esc(d.answer ?? '')}" placeholder="No code">
+      <div class="help">Players complete the task and show it to an organizer. Leave empty and the organizer just taps "confirm" on the team's phone. Add a code to make the organizer type it to confirm.</div>`;
+    $('eCode').oninput = (e) => { d.answer = e.target.value.trim() || null; updateState(); };
+    codeField($('eCode'));
+  }
+
+  box.querySelectorAll('[data-opt]').forEach(inp => inp.oninput = () => { d.options[Number(inp.dataset.opt)] = inp.value; updateState(); });
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.del);
+    d.options.splice(i, 1);
+    if (d.type === 'mcq' && typeof d.answer === 'number') d.answer = d.answer === i ? null : d.answer > i ? d.answer - 1 : d.answer;
+    renderAnswer(); updateState();
+  });
+  const add = $('addOpt');
+  if (add) add.onclick = () => {
+    d.options.push('');
+    renderAnswer(); updateState();
+    const inputs = box.querySelectorAll('[data-opt]'); inputs[inputs.length - 1].focus();
+  };
+}
+function move(i, dir) {
+  const o = draft.options; const j = i + dir;
+  [o[i], o[j]] = [o[j], o[i]];
+  renderAnswer(); updateState();
+}
+
+function validate(d) {
+  if (!d.prompt.trim()) return 'Write the question.';
+  const filled = (d.options || []).filter(o => String(o).trim());
+  if (d.type === 'mcq') {
+    if (filled.length < 2) return 'Add at least 2 options.';
+    if (filled.length !== d.options.length) return 'Fill in or remove the empty options.';
+    if (typeof d.answer !== 'number') return 'Select the correct option.';
+  }
+  if (d.type === 'order') {
+    if (filled.length < 2) return 'Add at least 2 items.';
+    if (filled.length !== d.options.length) return 'Fill in or remove the empty items.';
+    if (new Set(filled.map(o => o.trim())).size !== filled.length) return 'Items must all be different.';
+  }
+  if (d.type === 'pin' && !String(d.answer ?? '').trim()) return 'Enter the PIN code.';
+  if (d.type === 'truefalse' && typeof d.answer !== 'boolean') return 'Choose True or False.';
+  return null;
+}
+
+function updateState() {
+  const el = $('eState'); if (!el) return;
+  const dirty = isDirty();
+  el.className = 'save-state' + (dirty ? ' dirty' : '');
+  el.textContent = dirty ? 'Unsaved changes' : 'All changes saved';
+  $('eSave').disabled = !dirty;
+  $('eDiscard').disabled = !dirty;
+}
+
+async function saveStation() {
+  const err = validate(draft);
+  const el = $('eState');
+  if (err) { el.className = 'save-state err'; el.textContent = err; return; }
+  const btn = $('eSave'); btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res = await admin('admin_save_station', draft);
+    if (res.error) { el.className = 'save-state err'; el.textContent = res.error; return; }
+    const i = stations.findIndex(s => s.id === res.station.id);
+    stations[i] = res.station;
+    draft = clone(res.station);
+    renderQList(); renderEditor();
+    toast(`Station ${res.station.position} saved — live for players now`);
+  } catch (e) {
+    if (e.message !== 'auth') { el.className = 'save-state err'; el.textContent = 'Could not save. Check the connection.'; }
+  } finally {
+    const b = $('eSave'); if (b) { b.textContent = 'Save changes'; }
+    updateState();
+  }
+}
+window.addEventListener('beforeunload', (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+// ─── SETTINGS ───
+async function loadSettings() {
+  try {
+    settings = await rpc('get_settings');
+    $('setTitle').value = settings.event_title || '';
+    $('setHome').value = settings.home_message || '';
+    $('setFinishTitle').value = settings.finish_title || '';
+    $('setFinishMsg').value = settings.finish_message || '';
+  } catch { toast('Could not load settings.'); }
+}
+$('saveTexts').onclick = async () => {
+  const btn = $('saveTexts'); btn.disabled = true;
+  try {
+    const res = await admin('admin_save_settings', {
+      event_title: $('setTitle').value, home_message: $('setHome').value,
+      finish_title: $('setFinishTitle').value, finish_message: $('setFinishMsg').value,
+    });
+    toast(res.ok ? 'Texts saved' : (res.error || 'Could not save'));
+  } catch (e) { if (e.message !== 'auth') toast('Could not save. Check the connection.'); }
+  finally { btn.disabled = false; }
+};
+
+function renderQrLinks() {
+  const rows = [{ label: 'Registration', url: PUBLIC_URL }, ...stations.map(s => ({ label: 'Station ' + s.position, url: PUBLIC_URL + '#' + s.id }))];
+  $('qrRows').innerHTML = rows.map(r => `<tr>
+    <td style="width:130px"><b>${r.label}</b></td>
+    <td class="qr-url">${esc(r.url)}</td>
+    <td style="width:90px;text-align:right"><button class="btn btn-ghost btn-sm" data-copy="${esc(r.url)}">Copy</button></td>
+  </tr>`).join('');
+  $('qrRows').querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); toast('Link copied'); } catch { toast(b.dataset.copy); }
+  });
+}
+
+$('pwForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const a = $('newPw').value, b = $('newPw2').value;
+  if (a !== b) { toast('The two passwords do not match'); return; }
+  try {
+    const res = await admin('admin_change_password', a);
+    if (res.error) { toast(res.error); return; }
+    pw = a; sessionStorage.setItem(PW_KEY, pw);
+    loginNumeric = /^[0-9]+$/.test(a); loginKeyboard(loginNumeric);
+    $('newPw').value = ''; $('newPw2').value = '';
+    toast('Password changed');
+  } catch (err) { if (err.message !== 'auth') toast('Could not change the password.'); }
+};
+
+$('resetGame').onclick = async () => {
+  const ok = await confirmBox({
+    title: 'Reset the whole game?',
+    body: 'This permanently deletes <b>every team, all progress and all reports</b>. Players will have to register again. Questions are kept.',
+    confirm: 'Reset game', danger: true, requireText: 'RESET',
+  });
+  if (!ok) return;
+  try {
+    await admin('admin_reset_game');
+    knownReports = null;
+    toast('Game reset');
+    refreshLive();
+  } catch (err) { if (err.message !== 'auth') toast('Could not reset the game.'); }
+};
+
+// ─── boot ───
+if (pw) {
+  rpc('admin_login', pw).then(r => r.ok ? start() : logout()).catch(() => logout('Could not reach the database.'));
+}
+</script>
+</body>
+</html>
