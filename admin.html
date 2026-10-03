@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>TEAM-UP Admin</title>
+<title>TEAM-UP Scavenger Hunt — Admin</title>
 <link rel="icon" type="image/png" href="assets/mark-orange.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +32,11 @@
   .bar-inner { max-width: 1280px; margin: 0 auto; padding: 0 20px; height: 60px; display: flex; align-items: center; gap: 28px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; flex: none; }
   .brand img { height: 22px; width: auto; }
-  .brand span { color: rgba(255, 255, 255, .55); font-weight: 500; padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, .2); }
+  .brand .brand-name { color: var(--white); font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
+  .brand .brand-role { color: rgba(255, 255, 255, .55); font-weight: 500; padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, .2); }
+  .login-eyebrow { color: var(--orange-strong) !important; font-weight: 700; font-size: 14px; margin: -14px 0 6px !important; }
+  @media (max-width: 1100px) { .brand .brand-role { display: none; } }
+  @media (max-width: 860px) { .brand .brand-name { display: none; } }
   .tabs { display: flex; gap: 4px; height: 100%; }
   .tab {
     background: none; border: 0; color: rgba(255, 255, 255, .62); font-weight: 600; padding: 0 12px; height: 100%;
@@ -332,6 +336,7 @@
 <div class="login" id="loginView">
   <form class="login-card" id="loginForm" novalidate>
     <img src="assets/logo-black.png" alt="TEAM-UP">
+    <p class="login-eyebrow">Scavenger Hunt</p>
     <h1>Admin sign in</h1>
     <p>Manage questions and follow teams live.</p>
     <input class="input" id="pw" type="password" placeholder="Admin password" autocomplete="current-password" inputmode="numeric" autofocus required>
@@ -345,7 +350,7 @@
 <div id="appView" hidden>
   <header class="bar">
     <div class="bar-inner">
-      <div class="brand"><img src="assets/logo-white.png" alt="TEAM-UP"><span>Admin</span></div>
+      <div class="brand"><img src="assets/logo-white.png" alt="TEAM-UP"><span class="brand-name">Scavenger Hunt</span><span class="brand-role">Admin</span></div>
       <nav class="tabs">
         <button class="tab active" data-tab="live">Live <span class="count" id="reportCount" hidden></span></button>
         <button class="tab" data-tab="questions">Questions</button>
@@ -678,7 +683,7 @@ function renderLive() {
   $('sReportsCard').classList.toggle('alert', live.reports.length > 0);
   $('reportCount').hidden = !live.reports.length;
   $('reportCount').textContent = live.reports.length;
-  document.title = (live.reports.length ? `(${live.reports.length}) ` : '') + 'TEAM-UP Admin';
+  document.title = (live.reports.length ? `(${live.reports.length}) ` : '') + 'TEAM-UP Scavenger Hunt — Admin';
 
   // reports + alarm for new ones
   const ids = live.reports.map(r => r.id);
