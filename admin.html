@@ -215,7 +215,6 @@
   /* Photos */
   .tab .count.neutral { background: rgba(255, 255, 255, .2); }
   .photo-tools { display: flex; gap: 10px; flex-wrap: wrap; }
-  .photo-tools .select { width: auto; min-height: 38px; padding: 6px 12px; font-size: 14px; }
   .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
   .photo-card { padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); overflow: hidden; text-align: left; box-shadow: var(--shadow-sm); transition: transform .12s var(--ease), box-shadow .15s; }
   .photo-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
@@ -224,6 +223,16 @@
   .photo-card b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .photo-card span { font-size: 13px; color: var(--muted); }
   .photo-card.new { outline: 3px solid var(--orange); outline-offset: -3px; }
+  .photo-back { margin-bottom: 14px; }
+  .team-card { position: relative; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); overflow: hidden; text-align: left; box-shadow: var(--shadow-sm); transition: transform .12s var(--ease), box-shadow .15s; }
+  .team-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .tc-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--line); }
+  .tc-thumbs img, .tc-thumbs i { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--bg); display: block; }
+  .tc-body { padding: 12px 14px 14px; }
+  .tc-body b { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tc-body span { font-size: 13px; color: var(--muted); }
+  .tc-new { position: absolute; top: 8px; right: 8px; background: var(--orange); color: var(--white); font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 99px; box-shadow: var(--shadow-sm); }
+  .photo-title-team { overflow-wrap: anywhere; }
   .d-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
   .d-photos button { padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--bg); }
   .d-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; }
@@ -393,10 +402,10 @@
 
     <!-- PHOTOS -->
     <section id="tab-photos" hidden>
+      <button class="btn btn-ghost btn-sm photo-back" id="photoBack" hidden>‹ All teams</button>
       <div class="page-head">
-        <div><h1>Photos</h1><p>Photos sent by teams for photo missions. New photos appear automatically.</p></div>
-        <div class="photo-tools">
-          <select class="select" id="photoStation"><option value="">All stations</option></select>
+        <div><h1 id="photoTitle">Photos</h1><p id="photoSub">Pick a team to see its photos. New photos appear automatically.</p></div>
+        <div class="photo-tools" id="photoTools">
           <input class="input search" id="photoSearch" placeholder="Search teams…" dir="auto">
         </div>
       </div>
@@ -633,7 +642,7 @@ function showTab(name) {
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   ['live', 'questions', 'photos', 'settings'].forEach(n => $('tab-' + n).hidden = n !== name);
-  if (name === 'photos') { photoKey = ''; renderPhotos(); seenPhotoMax = photoMax; }   // highlight new ones once
+  if (name === 'photos') { photoTeam = null; photoKey = ''; renderPhotos(); seenPhotoMax = photoMax; }   // highlight new ones once
   history.replaceState(null, '', '#' + name);
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
@@ -836,7 +845,6 @@ async function loadStations() {
     renderQList();
     if (!draft) selectStation(selectedId, true);
     renderQrLinks();
-    fillPhotoStations();
   } catch (err) { if (err.message !== 'auth') toast('Could not load questions.'); }
 }
 
@@ -1096,42 +1104,82 @@ async function refreshPhotos() {
   } catch (err) { /* keep the last list; the live dot shows connection problems */ }
 }
 
-function filteredPhotos() {
-  const st = $('photoStation').value;
-  const q = $('photoSearch').value.trim().toLowerCase();
-  return photos
-    .filter(ph => (!st || ph.station_id === st) && (!q || ph.team_name.toLowerCase().includes(q)))
-    .sort((a, b) => b.id - a.id);
+let photoTeam = null;      // team id when looking at one team's photos
+
+// Photos grouped per team, most recent activity first.
+function photoTeams() {
+  const map = new Map();
+  for (const ph of photos) {
+    let g = map.get(ph.team_id);
+    if (!g) map.set(ph.team_id, g = { team_id: ph.team_id, team_name: ph.team_name, photos: [], latest: ph.created_at, newest: 0 });
+    g.photos.push(ph);
+    g.team_name = ph.team_name;
+    if (ph.created_at > g.latest) g.latest = ph.created_at;
+    g.newest = Math.max(g.newest, ph.id);
+  }
+  for (const g of map.values()) g.photos.sort((a, b) => a.position - b.position);
+  return [...map.values()].sort((a, b) => b.newest - a.newest);
+}
+function teamPhotos(teamId) {
+  return photos.filter(ph => ph.team_id === teamId).sort((a, b) => a.position - b.position);
 }
 
 function renderPhotos() {
-  const list = filteredPhotos();
-  const key = list.map(ph => ph.id).join(',') + '|' + seenPhotoMax;
+  const isNew = (ph) => seenPhotoMax !== null && ph.id > seenPhotoMax;
+  // the opened team has no photos left (rejected / team deleted) -> back to all teams
+  if (photoTeam && !photos.some(ph => ph.team_id === photoTeam)) photoTeam = null;
+  const q = $('photoSearch').value.trim().toLowerCase();
+  const groups = photoTeam ? [] : photoTeams().filter(g => !q || g.team_name.toLowerCase().includes(q));
+  const list = photoTeam ? teamPhotos(photoTeam) : [];
+  const key = (photoTeam || '*') + '|' + q + '|' + photos.map(ph => ph.id + ph.team_name).join(',') + '|' + seenPhotoMax;
   if (key === photoKey) {
-    // only refresh the "x min ago" labels
     $('photoGrid').querySelectorAll('[data-ago]').forEach(el => el.textContent = ago(el.dataset.ago));
     return;
   }
   photoKey = key;
-  $('photoGrid').innerHTML = list.length ? list.map(ph => `
-    <button class="photo-card ${seenPhotoMax !== null && ph.id > seenPhotoMax ? 'new' : ''}" data-id="${ph.id}">
-      <img src="data:image/jpeg;base64,${ph.thumb}" alt="" loading="lazy">
-      <div><b><bdi>${esc(ph.team_name)}</bdi></b><span>Station ${ph.position} · <span data-ago="${ph.created_at}">${ago(ph.created_at)}</span></span></div>
-    </button>`).join('')
-    : `<div class="card empty" style="grid-column:1/-1"><b>${photos.length ? 'No photo matches your filter' : 'No photos yet'}</b>${photos.length ? '' : 'Photos appear here as soon as teams send them from a photo mission.'}</div>`;
-  $('photoGrid').querySelectorAll('.photo-card').forEach(c => c.onclick = () => openPhoto(Number(c.dataset.id), filteredPhotos()));
-}
-$('photoStation').onchange = renderPhotos;
-$('photoSearch').oninput = renderPhotos;
 
-function fillPhotoStations() {
-  const sel = $('photoStation');
-  const cur = sel.value;
-  const list = stations.filter(s => s.type === 'mission' || photos.some(ph => ph.station_id === s.id));
-  sel.innerHTML = '<option value="">All stations</option>' + list.map(s =>
-    `<option value="${s.id}">Station ${s.position}${s.label ? ' · ' + esc(s.label) : ''}</option>`).join('');
-  sel.value = list.some(s => s.id === cur) ? cur : '';
+  $('photoBack').hidden = !photoTeam;
+  $('photoTools').hidden = !!photoTeam;
+
+  if (photoTeam) {
+    // one team: all its photos, by station
+    $('photoTitle').innerHTML = `<span class="photo-title-team"><bdi>${esc(list[0].team_name)}</bdi></span>`;
+    $('photoSub').textContent = `${list.length} photo${list.length === 1 ? '' : 's'} · tap a photo to open it`;
+    $('photoGrid').innerHTML = list.map(ph => `
+      <button class="photo-card ${isNew(ph) ? 'new' : ''}" data-id="${ph.id}">
+        <img src="data:image/jpeg;base64,${ph.thumb}" alt="" loading="lazy">
+        <div><b>Station ${ph.position}${ph.label ? ' · <bdi>' + esc(ph.label) + '</bdi>' : ''}</b><span data-ago="${ph.created_at}">${ago(ph.created_at)}</span></div>
+      </button>`).join('');
+    $('photoGrid').querySelectorAll('.photo-card').forEach(c => c.onclick = () => openPhoto(Number(c.dataset.id), teamPhotos(photoTeam)));
+    return;
+  }
+
+  // all teams
+  $('photoTitle').textContent = 'Photos';
+  $('photoSub').textContent = 'Pick a team to see its photos. New photos appear automatically.';
+  $('photoGrid').innerHTML = groups.length ? groups.map(g => {
+    const thumbs = g.photos.slice(0, 3).map(ph => `<img src="data:image/jpeg;base64,${ph.thumb}" alt="" loading="lazy">`).join('')
+      + '<i></i>'.repeat(Math.max(0, 3 - g.photos.length));
+    const fresh = g.photos.filter(isNew).length;
+    return `<button class="team-card" data-team="${g.team_id}">
+      <div class="tc-thumbs">${thumbs}</div>
+      ${fresh ? `<span class="tc-new">${fresh} new</span>` : ''}
+      <div class="tc-body"><b><bdi>${esc(g.team_name)}</bdi></b>
+        <span>${g.photos.length} photo${g.photos.length === 1 ? '' : 's'} · <span data-ago="${g.latest}">${ago(g.latest)}</span></span></div>
+    </button>`;
+  }).join('')
+    : `<div class="card empty" style="grid-column:1/-1"><b>${photos.length ? 'No team matches your search' : 'No photos yet'}</b>${photos.length ? '' : 'Teams appear here as soon as they send a photo from a photo mission.'}</div>`;
+  $('photoGrid').querySelectorAll('.team-card').forEach(c => c.onclick = () => showPhotoTeam(c.dataset.team));
 }
+
+function showPhotoTeam(teamId) {
+  photoTeam = teamId;
+  photoKey = '';
+  renderPhotos();
+  window.scrollTo({ top: 0 });
+}
+$('photoBack').onclick = () => { photoTeam = null; photoKey = ''; renderPhotos(); };
+$('photoSearch').oninput = renderPhotos;
 
 async function openPhoto(id, list) {
   lb.list = list.length ? list : photos;
