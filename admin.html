@@ -212,6 +212,40 @@
   .danger { border-color: #f1c4be; }
   .danger .card-head { background: var(--red-soft); border-color: #f1c4be; }
 
+  /* Photos */
+  .tab .count.neutral { background: rgba(255, 255, 255, .2); }
+  .photo-tools { display: flex; gap: 10px; flex-wrap: wrap; }
+  .photo-tools .select { width: auto; min-height: 38px; padding: 6px 12px; font-size: 14px; }
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .photo-card { padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); overflow: hidden; text-align: left; box-shadow: var(--shadow-sm); transition: transform .12s var(--ease), box-shadow .15s; }
+  .photo-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .photo-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--bg); }
+  .photo-card div { padding: 10px 12px 12px; }
+  .photo-card b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .photo-card span { font-size: 13px; color: var(--muted); }
+  .photo-card.new { outline: 3px solid var(--orange); outline-offset: -3px; }
+  .d-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .d-photos button { padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--bg); }
+  .d-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+  .d-photos small { display: block; font-size: 11px; color: var(--muted); padding: 3px 0; }
+  .lightbox { position: fixed; inset: 0; z-index: 600; background: rgba(10, 10, 10, .96); color: var(--white); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100vh; height: 100dvh; }
+  .lb-top { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .lb-top b { display: block; font-size: 17px; }
+  .lb-top span { color: rgba(255, 255, 255, .65); font-size: 14px; }
+  .lb-top .icon-btn { margin-left: auto; background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .2); color: var(--white); }
+  .lb-img { position: relative; display: flex; align-items: center; justify-content: center; min-height: 0; height: 100%; overflow: hidden; padding: 0 12px; }
+  .lb-img img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 8px; }
+  .lb-img .spinner { position: absolute; border-color: rgba(255, 255, 255, .2); border-top-color: var(--orange); }
+  .lb-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .lb-actions .btn-ghost { color: var(--white); border-color: rgba(255, 255, 255, .3); }
+  .lb-actions .btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, .08); }
+  @media (max-width: 720px) {
+    .photo-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .photo-tools { width: 100%; }
+    .photo-tools > * { flex: 1 1 140px; }
+    .lb-actions .btn { flex: 1 1 40%; }
+  }
+
   /* Modal */
   .modal { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; padding: 16px; background: rgba(17, 17, 17, .45); }
   .modal-card { width: 100%; max-width: 440px; background: var(--white); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-lg); }
@@ -306,6 +340,7 @@
       <nav class="tabs">
         <button class="tab active" data-tab="live">Live <span class="count" id="reportCount" hidden></span></button>
         <button class="tab" data-tab="questions">Questions</button>
+        <button class="tab" data-tab="photos">Photos <span class="count neutral" id="photoCount" hidden></span></button>
         <button class="tab" data-tab="settings">Settings</button>
       </nav>
       <div class="bar-right">
@@ -356,6 +391,18 @@
       </div>
     </section>
 
+    <!-- PHOTOS -->
+    <section id="tab-photos" hidden>
+      <div class="page-head">
+        <div><h1>Photos</h1><p>Photos sent by teams for photo missions. New photos appear automatically.</p></div>
+        <div class="photo-tools">
+          <select class="select" id="photoStation"><option value="">All stations</option></select>
+          <input class="input search" id="photoSearch" placeholder="Search teams…" dir="auto">
+        </div>
+      </div>
+      <div class="photo-grid" id="photoGrid"></div>
+    </section>
+
     <!-- SETTINGS -->
     <section id="tab-settings" hidden>
       <div class="page-head"><div><h1>Settings</h1><p>Texts shown to players, QR links and admin access.</p></div></div>
@@ -403,6 +450,19 @@
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-top">
+    <div><b id="lbTeam"></b><span id="lbMeta"></span></div>
+    <button class="icon-btn" id="lbClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="lb-img"><div class="spinner" id="lbSpin"></div><img id="lbImg" alt="Team photo"></div>
+  <div class="lb-actions">
+    <button class="btn btn-ghost" id="lbPrev">‹ Previous</button>
+    <button class="btn btn-ghost" id="lbNext">Next ›</button>
+    <a class="btn btn-white" id="lbDownload" download>Download</a>
+    <button class="btn btn-danger" id="lbReject">Reject photo</button>
+  </div>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script type="module">
@@ -545,6 +605,8 @@ $('loginForm').onsubmit = async (e) => {
 function logout(msg) {
   pw = ''; sessionStorage.removeItem(PW_KEY);
   clearInterval(pollTimer);
+  clearInterval(photoTimer);
+  closePhoto();
   $('appView').hidden = true; $('loginView').hidden = false;
   $('pw').value = '';
   $('loginError').textContent = msg || '';
@@ -557,16 +619,21 @@ async function start() {
   refreshLive();
   clearInterval(pollTimer);
   pollTimer = setInterval(() => { if (!document.hidden) refreshLive(); }, POLL_MS);
+  photos = []; photoMax = 0; seenPhotoMax = null;
+  refreshPhotos();
+  clearInterval(photoTimer);
+  photoTimer = setInterval(() => { if (!document.hidden) refreshPhotos(); }, PHOTO_POLL_MS);
   loadStations();
   loadSettings();
 }
 
 // ─── tabs ───
 function showTab(name) {
-  if (!['live', 'questions', 'settings'].includes(name)) name = 'live';
+  if (!['live', 'questions', 'photos', 'settings'].includes(name)) name = 'live';
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['live', 'questions', 'settings'].forEach(n => $('tab-' + n).hidden = n !== name);
+  ['live', 'questions', 'photos', 'settings'].forEach(n => $('tab-' + n).hidden = n !== name);
+  if (name === 'photos') { photoKey = ''; renderPhotos(); seenPhotoMax = photoMax; }   // highlight new ones once
   history.replaceState(null, '', '#' + name);
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
@@ -675,7 +742,15 @@ function closeTeam() {
   $('drawer').setAttribute('aria-hidden', 'true');
 }
 $('scrim').onclick = closeTeam;
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && openTeamId) closeTeam(); });
+document.addEventListener('keydown', e => {
+  if (!$('lightbox').hidden) {
+    if (e.key === 'Escape') closePhoto();
+    if (e.key === 'ArrowRight') stepPhoto(1);
+    if (e.key === 'ArrowLeft') stepPhoto(-1);
+    return;
+  }
+  if (e.key === 'Escape' && openTeamId) closeTeam();
+});
 
 function renderDrawer() {
   const t = live?.teams.find(x => x.id === openTeamId);
@@ -709,6 +784,11 @@ function renderDrawer() {
         <span><i style="background:var(--orange);border-color:var(--orange);border-radius:50%"></i>Here now</span>
       </div>
       <p class="help">Click a station to mark it solved or unsolved by hand (for example after a photo mission).</p>
+      ${(() => {
+        const mine = photos.filter(ph => ph.team_id === t.id).sort((a, b) => a.position - b.position);
+        return mine.length ? `<div class="field-label" style="margin-top:22px">Photos</div><div class="d-photos">${mine.map(ph =>
+          `<button data-photo="${ph.id}"><img src="data:image/jpeg;base64,${ph.thumb}" alt=""><small>Station ${ph.position}</small></button>`).join('')}</div>` : '';
+      })()}
     </div>
     <div class="drawer-foot">
       <button class="btn btn-ghost btn-sm" id="dRename">Rename</button>
@@ -716,6 +796,7 @@ function renderDrawer() {
       <button class="btn btn-danger btn-sm" id="dDelete" style="margin-left:auto">Delete team</button>
     </div>`;
   $('dClose').onclick = closeTeam;
+  $('drawer').querySelectorAll('[data-photo]').forEach(b => b.onclick = () => openPhoto(Number(b.dataset.photo), photos.filter(ph => ph.team_id === t.id)));
   $('drawer').querySelectorAll('[data-st]').forEach(b => b.onclick = async () => {
     const solved = t.solved_ids.includes(b.dataset.st);
     const ok = await confirmBox({
@@ -755,6 +836,7 @@ async function loadStations() {
     renderQList();
     if (!draft) selectStation(selectedId, true);
     renderQrLinks();
+    fillPhotoStations();
   } catch (err) { if (err.message !== 'auth') toast('Could not load questions.'); }
 }
 
@@ -777,7 +859,7 @@ function renderQList() {
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 function original() { return stations.find(s => s.id === selectedId); }
 function comparable(s) {
-  return JSON.stringify({ label: s.label, type: s.type, prompt: s.prompt, options: s.options, answer: s.answer ?? null, hint: s.hint, hint_after: Number(s.hint_after), active: s.active });
+  return JSON.stringify({ label: s.label, type: s.type, prompt: s.prompt, options: s.options, answer: s.answer ?? null, hint: s.hint, hint_after: Number(s.hint_after), active: s.active, photo_required: s.type === 'mission' ? s.photo_required !== false : null });
 }
 function isDirty() { return !!(draft && original() && comparable(draft) !== comparable(original())); }
 
@@ -905,9 +987,15 @@ function renderAnswer() {
       </div>`;
     box.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { d.answer = b.dataset.tf === 'true'; renderAnswer(); updateState(); });
   } else if (d.type === 'mission') {
-    box.innerHTML = `<label for="eCode">Organizer code <span class="sub">(optional)</span></label>
+    if (d.photo_required === undefined) d.photo_required = true;
+    box.innerHTML = `<label class="switch" style="margin-bottom:8px"><input type="checkbox" id="ePhotoReq" ${d.photo_required !== false ? 'checked' : ''}><span>Players must upload a photo</span></label>
+      <div class="help" style="margin-bottom:18px">${d.photo_required !== false
+        ? 'On: the team takes a photo and sends it — that completes the station. You see every photo in the <b>Photos</b> tab and can reject it.'
+        : 'Off: the team shows the result to an organizer, who taps “confirm” on the team’s phone.'}</div>
+      <label for="eCode">Organizer code <span class="sub">(optional)</span></label>
       <input class="input code-field" id="eCode" dir="ltr" autocomplete="off" value="${esc(d.answer ?? '')}" placeholder="No code">
-      <div class="help">Players complete the task and show it to an organizer. Leave empty and the organizer just taps "confirm" on the team's phone. Add a code to make the organizer type it to confirm.</div>`;
+      <div class="help">Leave empty for no code. With a code, an organizer has to type it on the team's phone to complete the station.</div>`;
+    $('ePhotoReq').onchange = (e) => { d.photo_required = e.target.checked; renderAnswer(); updateState(); };
     $('eCode').oninput = (e) => { d.answer = e.target.value.trim() || null; updateState(); };
     codeField($('eCode'));
   }
@@ -980,6 +1068,138 @@ async function saveStation() {
   }
 }
 window.addEventListener('beforeunload', (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+// ─── PHOTOS ───
+const PHOTO_POLL_MS = 8000;
+let photos = [];          // {id, team_id, team_name, station_id, position, label, created_at, thumb}
+let photoMax = 0;         // highest photo id received
+let seenPhotoMax = null;  // photos newer than this are highlighted
+let photoTimer = null;
+let photoKey = '';
+let lb = { list: [], index: 0, token: 0 };
+
+async function refreshPhotos() {
+  try {
+    const res = await admin('admin_photos', photoMax);
+    if (res.error) return;
+    const ids = new Set(res.ids);
+    const before = photos.length;
+    photos = photos.filter(ph => ids.has(ph.id)).concat(res.photos);
+    for (const ph of res.photos) photoMax = Math.max(photoMax, ph.id);
+    if (seenPhotoMax === null) seenPhotoMax = photoMax;
+    $('photoCount').hidden = !photos.length;
+    $('photoCount').textContent = photos.length;
+    if (res.photos.length || photos.length !== before) {
+      renderPhotos();
+      if (openTeamId) renderDrawer();
+    }
+  } catch (err) { /* keep the last list; the live dot shows connection problems */ }
+}
+
+function filteredPhotos() {
+  const st = $('photoStation').value;
+  const q = $('photoSearch').value.trim().toLowerCase();
+  return photos
+    .filter(ph => (!st || ph.station_id === st) && (!q || ph.team_name.toLowerCase().includes(q)))
+    .sort((a, b) => b.id - a.id);
+}
+
+function renderPhotos() {
+  const list = filteredPhotos();
+  const key = list.map(ph => ph.id).join(',') + '|' + seenPhotoMax;
+  if (key === photoKey) {
+    // only refresh the "x min ago" labels
+    $('photoGrid').querySelectorAll('[data-ago]').forEach(el => el.textContent = ago(el.dataset.ago));
+    return;
+  }
+  photoKey = key;
+  $('photoGrid').innerHTML = list.length ? list.map(ph => `
+    <button class="photo-card ${seenPhotoMax !== null && ph.id > seenPhotoMax ? 'new' : ''}" data-id="${ph.id}">
+      <img src="data:image/jpeg;base64,${ph.thumb}" alt="" loading="lazy">
+      <div><b><bdi>${esc(ph.team_name)}</bdi></b><span>Station ${ph.position} · <span data-ago="${ph.created_at}">${ago(ph.created_at)}</span></span></div>
+    </button>`).join('')
+    : `<div class="card empty" style="grid-column:1/-1"><b>${photos.length ? 'No photo matches your filter' : 'No photos yet'}</b>${photos.length ? '' : 'Photos appear here as soon as teams send them from a photo mission.'}</div>`;
+  $('photoGrid').querySelectorAll('.photo-card').forEach(c => c.onclick = () => openPhoto(Number(c.dataset.id), filteredPhotos()));
+}
+$('photoStation').onchange = renderPhotos;
+$('photoSearch').oninput = renderPhotos;
+
+function fillPhotoStations() {
+  const sel = $('photoStation');
+  const cur = sel.value;
+  const list = stations.filter(s => s.type === 'mission' || photos.some(ph => ph.station_id === s.id));
+  sel.innerHTML = '<option value="">All stations</option>' + list.map(s =>
+    `<option value="${s.id}">Station ${s.position}${s.label ? ' · ' + esc(s.label) : ''}</option>`).join('');
+  sel.value = list.some(s => s.id === cur) ? cur : '';
+}
+
+async function openPhoto(id, list) {
+  lb.list = list.length ? list : photos;
+  lb.index = Math.max(0, lb.list.findIndex(ph => ph.id === id));
+  $('lightbox').hidden = false;
+  document.body.style.overflow = 'hidden';
+  showPhoto();
+}
+function closePhoto() {
+  $('lightbox').hidden = true;
+  document.body.style.overflow = '';
+  lb.token++;
+}
+function stepPhoto(d) {
+  if (!lb.list.length) return;
+  lb.index = (lb.index + d + lb.list.length) % lb.list.length;
+  showPhoto();
+}
+async function showPhoto() {
+  const ph = lb.list[lb.index];
+  if (!ph) { closePhoto(); return; }
+  const token = ++lb.token;
+  $('lbTeam').innerHTML = `<bdi>${esc(ph.team_name)}</bdi>`;
+  $('lbMeta').textContent = `Station ${ph.position}${ph.label ? ' · ' + ph.label : ''} · ${clock(ph.created_at)} · ${lb.index + 1} of ${lb.list.length}`;
+  $('lbPrev').disabled = $('lbNext').disabled = lb.list.length < 2;
+  const img = $('lbImg');
+  img.src = 'data:image/jpeg;base64,' + ph.thumb;   // blurry preview first
+  $('lbSpin').hidden = false;
+  $('lbDownload').removeAttribute('href');
+  try {
+    const res = await admin('admin_photo', ph.id);
+    if (token !== lb.token) return;
+    if (res.error) { toast('This photo no longer exists'); return; }
+    const url = 'data:image/jpeg;base64,' + res.image;
+    img.src = url;
+    $('lbDownload').href = url;
+    $('lbDownload').download = `${ph.team_name.replace(/[\\/:*?"<>|]+/g, '_')}-station${ph.position}.jpg`;
+  } catch (err) {
+    if (token === lb.token && err.message !== 'auth') toast('Could not load the photo.');
+  } finally {
+    if (token === lb.token) $('lbSpin').hidden = true;
+  }
+}
+$('lbClose').onclick = closePhoto;
+$('lbPrev').onclick = () => stepPhoto(-1);
+$('lbNext').onclick = () => stepPhoto(1);
+$('lightbox').onclick = (e) => { if (e.target.classList.contains('lb-img')) closePhoto(); };
+$('lbReject').onclick = async () => {
+  const ph = lb.list[lb.index];
+  if (!ph) return;
+  const ok = await confirmBox({
+    title: 'Reject this photo?',
+    body: `The photo is deleted and <b><bdi>${esc(ph.team_name)}</bdi></b> will have to do <b>Station ${ph.position}</b> again.`,
+    confirm: 'Reject photo', danger: true,
+  });
+  if (!ok) return;
+  try {
+    const res = await admin('admin_reject_photo', ph.id);
+    if (res.error) { toast(res.error); return; }
+    photos = photos.filter(x => x.id !== ph.id);
+    lb.list = lb.list.filter(x => x.id !== ph.id);
+    $('photoCount').hidden = !photos.length; $('photoCount').textContent = photos.length;
+    photoKey = ''; renderPhotos();
+    toast(`Photo rejected — ${ph.team_name} must redo station ${ph.position}`);
+    refreshLive();
+    if (lb.list.length) { lb.index = Math.min(lb.index, lb.list.length - 1); showPhoto(); } else closePhoto();
+  } catch (err) { if (err.message !== 'auth') toast('Could not reject the photo.'); }
+};
 
 // ─── SETTINGS ───
 async function loadSettings() {

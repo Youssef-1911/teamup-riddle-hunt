@@ -54,6 +54,19 @@ create table if not exists hunt.reports (
   resolved_at timestamptz
 );
 
+-- photo missions: players must upload a photo to complete the station
+alter table hunt.stations add column if not exists photo_required boolean not null default true;
+
+create table if not exists hunt.photos (
+  id          bigint generated always as identity primary key,
+  team_id     uuid not null references hunt.teams(id) on delete cascade,
+  station_id  text not null references hunt.stations(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  image       bytea not null,   -- JPEG, resized on the phone (max ~1280px)
+  thumb       bytea not null,   -- small JPEG for the admin gallery
+  unique (team_id, station_id)
+);
+
 create table if not exists hunt.settings (
   key   text primary key,
   value text not null
@@ -138,7 +151,8 @@ begin
     'options', v_opts,
     'pin_length', case when s.type = 'pin' then length(v_code) end,
     'pin_numeric', case when s.type in ('pin', 'mission') then v_code ~ '^[0-9]*$' end,
-    'needs_code', case when s.type = 'mission' then v_code <> '' end
+    'needs_code', case when s.type = 'mission' then v_code <> '' end,
+    'photo_required', case when s.type = 'mission' then s.photo_required end
   );
 end $$;
 
@@ -251,7 +265,8 @@ begin
       when 'truefalse' then jsonb_typeof(p_answer) = 'boolean' and p_answer = s.answer
       when 'order'     then p_answer = s.options
       when 'pin'       then _norm(s.answer #>> '{}') <> '' and _norm(p_answer #>> '{}') = _norm(s.answer #>> '{}')
-      when 'mission'   then _norm(s.answer #>> '{}') = '' or _norm(p_answer #>> '{}') = _norm(s.answer #>> '{}')
+      when 'mission'   then (not s.photo_required or exists (select 1 from photos ph where ph.team_id = t.id and ph.station_id = s.id))
+                        and (_norm(s.answer #>> '{}') = '' or _norm(p_answer #>> '{}') = _norm(s.answer #>> '{}'))
     end;
     v_ok := coalesce(v_ok, false);
 
@@ -396,6 +411,7 @@ begin
     answer     = v_ans,
     hint       = btrim(coalesce(p->>'hint', '')),
     hint_after = greatest(0, coalesce((p->>'hint_after')::int, 3)),
+    photo_required = coalesce((p->>'photo_required')::boolean, true),
     active     = coalesce((p->>'active')::boolean, true),
     updated_at = now()
   where id = p->>'id'
@@ -459,6 +475,7 @@ begin
     delete from teams where id = p_team;
   elsif p_action = 'reset' then
     delete from progress where team_id = p_team;
+    delete from photos where team_id = p_team;
     update teams set finished_at = null, current_station = null where id = p_team;
   elsif p_action in ('solve', 'unsolve') then
     insert into progress (team_id, station_id) values (p_team, p_arg) on conflict do nothing;
@@ -510,6 +527,90 @@ begin
   return json_build_object('ok', true);
 end $$;
 
+-- ───────────────────────────── Photos ─────────────────────────────
+
+-- Player uploads the photo for a photo mission. p = {image: base64 jpeg, thumb: base64 jpeg}.
+-- Re-uploading replaces the previous photo (new id, so the admin gallery picks it up).
+create or replace function hunt.upload_photo(p_team uuid, p_station text, p jsonb) returns json
+language plpgsql security definer set search_path = hunt, pg_temp as $$
+declare
+  s stations;
+  v_img bytea;
+  v_thumb bytea;
+begin
+  if not exists (select 1 from teams where id = p_team) then return json_build_object('error', 'no_team'); end if;
+  select * into s from stations where id = p_station;
+  if not found then return json_build_object('error', 'no_station'); end if;
+  if not s.active then return json_build_object('error', 'closed'); end if;
+  if s.type <> 'mission' then return json_build_object('error', 'not_mission'); end if;
+  if length(coalesce(p->>'image', '')) > 900000 or length(coalesce(p->>'thumb', '')) > 150000 then
+    return json_build_object('error', 'too_large');
+  end if;
+  if (select count(*) from photos) >= 3000 then return json_build_object('error', 'storage_full'); end if;
+  begin
+    v_img := decode(p->>'image', 'base64');
+    v_thumb := decode(p->>'thumb', 'base64');
+  exception when others then
+    return json_build_object('error', 'bad_image');
+  end;
+  -- must be a JPEG (FF D8 FF)
+  if v_img is null or length(v_img) < 100 or substring(v_img from 1 for 3) <> '\xffd8ff'::bytea
+     or v_thumb is null or substring(v_thumb from 1 for 3) <> '\xffd8ff'::bytea then
+    return json_build_object('error', 'bad_image');
+  end if;
+
+  delete from photos where team_id = p_team and station_id = s.id;
+  insert into photos (team_id, station_id, image, thumb) values (p_team, s.id, v_img, v_thumb);
+  update teams set last_seen = now(), current_station = s.id where id = p_team;
+  return json_build_object('ok', true);
+end $$;
+
+-- Gallery: photos newer than p_after (thumbnails only) + ids of all current photos.
+create or replace function hunt.admin_photos(p_pw text, p_after bigint) returns json
+language plpgsql security definer set search_path = hunt, pg_temp as $$
+begin
+  if not _admin_ok(p_pw) then return json_build_object('error', 'auth'); end if;
+  return json_build_object(
+    'ids', (select coalesce(json_agg(id order by id), '[]') from photos),
+    'photos', (
+      select coalesce(json_agg(json_build_object(
+               'id', ph.id, 'team_id', ph.team_id, 'team_name', t.name,
+               'station_id', ph.station_id, 'position', s.position, 'label', s.label,
+               'created_at', ph.created_at, 'thumb', translate(encode(ph.thumb, 'base64'), E'\n', '')) order by ph.id), '[]')
+      from photos ph
+      join teams t on t.id = ph.team_id
+      join stations s on s.id = ph.station_id
+      where ph.id > coalesce(p_after, 0))
+  );
+end $$;
+
+create or replace function hunt.admin_photo(p_pw text, p_id bigint) returns json
+language plpgsql security definer set search_path = hunt, pg_temp as $$
+declare
+  v text;
+begin
+  if not _admin_ok(p_pw) then return json_build_object('error', 'auth'); end if;
+  -- encode() wraps base64 every 76 characters; strip the line breaks
+  select translate(encode(image, 'base64'), E'\n', '') into v from photos where id = p_id;
+  if v is null then return json_build_object('error', 'not_found'); end if;
+  return json_build_object('image', v);
+end $$;
+
+-- Reject: delete the photo and reopen the station for that team (they must redo it).
+create or replace function hunt.admin_reject_photo(p_pw text, p_id bigint) returns json
+language plpgsql security definer set search_path = hunt, pg_temp as $$
+declare
+  ph photos;
+begin
+  if not _admin_ok(p_pw) then return json_build_object('error', 'auth'); end if;
+  delete from photos where id = p_id returning * into ph;
+  if ph.id is null then return json_build_object('ok', true); end if;
+  update progress set solved_at = null where team_id = ph.team_id and station_id = ph.station_id;
+  update teams set finished_at = case when _total() > 0 and _solved(ph.team_id) >= _total() then finished_at end
+  where id = ph.team_id;
+  return json_build_object('ok', true);
+end $$;
+
 -- ───────────────────────────── Permissions ─────────────────────────────
 
 revoke all on all tables in schema hunt from public;
@@ -537,7 +638,11 @@ begin
       hunt.admin_team(text, uuid, text, text),
       hunt.admin_reset_game(text),
       hunt.admin_save_settings(text, jsonb),
-      hunt.admin_change_password(text, text)
+      hunt.admin_change_password(text, text),
+      hunt.upload_photo(uuid, text, jsonb),
+      hunt.admin_photos(text, bigint),
+      hunt.admin_photo(text, bigint),
+      hunt.admin_reject_photo(text, bigint)
     to hunt_app$g$;
   end if;
 end $$;

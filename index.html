@@ -117,6 +117,17 @@
   .mission svg { flex: none; width: 26px; height: 26px; color: var(--orange); }
   .mission p { font-size: 15px; color: var(--ink-2); }
   .mission b { display: block; color: var(--black); font-size: 16px; margin-bottom: 2px; }
+  .photo-box { margin-bottom: 16px; }
+  .photo-pick {
+    width: 100%; min-height: 168px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    border: 2px dashed var(--line-strong); border-radius: var(--radius); background: var(--white); color: var(--ink);
+  }
+  .photo-pick:hover:not(:disabled) { border-color: var(--black); }
+  .photo-pick svg { width: 40px; height: 40px; color: var(--orange); margin-bottom: 4px; }
+  .photo-pick b { font-size: 17px; }
+  .photo-pick span { font-size: 14px; color: var(--muted); }
+  .photo-preview { display: grid; gap: 10px; justify-items: center; }
+  .photo-preview img { width: 100%; max-height: 52vh; object-fit: contain; border-radius: var(--radius); background: var(--bg); }
   .field-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--ink-2); }
 
   .feedback { min-height: 26px; margin-top: 16px; text-align: center; font-weight: 700; font-size: 16px; }
@@ -523,6 +534,23 @@ function renderQuestion(data) {
         <div class="pin-boxes ${n > 6 ? 'many' : ''}">${'<div class="pin-box"></div>'.repeat(n)}</div>
       </label>
       <button class="btn btn-lg btn-block" type="button" id="pinSubmit" disabled>تأكيد الرمز</button>`;
+  } else if (st.type === 'mission' && st.photo_required) {
+    body = `<div class="mission">${ICON.camera}<p><b>مهمة تصوير</b>صوّروا المهمة وأرسلوا الصورة لإكمال المحطة.</p></div>
+      <input type="file" id="photoInput" accept="image/*" hidden>
+      <div class="photo-box" id="photoBox">
+        <button class="photo-pick" type="button" id="photoPick">
+          ${ICON.camera}<b>التقطوا صورة</b><span>أو اختاروا صورة من الهاتف</span>
+        </button>
+        <div class="photo-preview" id="photoPreview" hidden>
+          <img alt="الصورة المختارة">
+          <button class="btn btn-ghost btn-sm" type="button" id="photoChange">تغيير الصورة</button>
+        </div>
+      </div>
+      ${st.needs_code
+        ? `<label class="field-label" for="codeInput">رمز المنظم</label>
+           <input class="input code-input" id="codeInput" ${st.pin_numeric ? 'inputmode="numeric"' : ''} autocomplete="off" placeholder="••••">`
+        : ''}
+      <button class="btn btn-lg btn-block" type="button" id="missionBtn" disabled>إرسال الصورة</button>`;
   } else if (st.type === 'mission') {
     body = `<div class="mission">${ICON.camera}<p><b>مهمة جماعية</b>أكملوا المهمة وأروا المنظم النتيجة.</p></div>
       ${st.needs_code
@@ -670,15 +698,100 @@ function wireQuestion(st) {
   if (st.type === 'mission') {
     const btn = document.getElementById('missionBtn');
     const code = document.getElementById('codeInput');
+    const wrongCode = () => {
+      btn.disabled = false;
+      code?.classList.add('shake'); setTimeout(() => code?.classList.remove('shake'), 500);
+      if (code) { code.value = ''; code.focus(); }
+      feedback.textContent = 'رمز المنظم غير صحيح'; feedback.className = 'feedback bad';
+    };
+
+    if (!st.photo_required) {
+      btn.onclick = async () => {
+        if (code && !code.value.trim()) { code.focus(); return; }
+        btn.disabled = true;
+        await submit(code ? code.value : null, { onWrong: wrongCode, onError: () => { btn.disabled = false; } });
+      };
+      return;
+    }
+
+    // photo required: pick/take a photo, preview it, upload it, then complete the station
+    const input = document.getElementById('photoInput');
+    const pick = document.getElementById('photoPick');
+    const preview = document.getElementById('photoPreview');
+    let photo = null;        // { image, thumb } base64 JPEGs
+    let uploaded = false;
+    pick.onclick = () => input.click();
+    document.getElementById('photoChange').onclick = () => input.click();
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      input.value = '';
+      if (!file) return;
+      pick.disabled = true;
+      try {
+        photo = await preparePhoto(file);
+        uploaded = false;
+        preview.querySelector('img').src = 'data:image/jpeg;base64,' + photo.image;
+        preview.hidden = false; pick.hidden = true;
+        btn.disabled = false;
+        feedback.textContent = '';
+      } catch {
+        toast('تعذر قراءة الصورة، جربوا صورة أخرى');
+      } finally { pick.disabled = false; }
+    };
+
     btn.onclick = async () => {
+      if (!photo) { input.click(); return; }
       if (code && !code.value.trim()) { code.focus(); return; }
       btn.disabled = true;
-      await submit(code ? code.value : null, {
-        onWrong: () => { btn.disabled = false; code?.classList.add('shake'); setTimeout(() => code?.classList.remove('shake'), 500); if (code) { code.value = ''; code.focus(); } feedback.textContent = 'رمز المنظم غير صحيح'; },
-        onError: () => { btn.disabled = false; },
-      });
+      const label = btn.textContent;
+      if (!uploaded) {
+        btn.textContent = 'جارٍ رفع الصورة...';
+        let res;
+        try { res = await rpc('upload_photo', team.id, st.id, photo); }
+        catch { btn.disabled = false; btn.textContent = label; toast('تعذر رفع الصورة، تأكدوا من الاتصال وحاولوا مرة أخرى'); return; }
+        if (token !== navToken) return;
+        if (res.error === 'no_team') return handleNoTeam();
+        if (res.error === 'closed' || res.error === 'no_station') return route();
+        if (res.error) { btn.disabled = false; btn.textContent = label; toast('تعذر رفع الصورة، جربوا صورة أخرى'); return; }
+        uploaded = true;
+      }
+      btn.textContent = label;
+      await submit(code ? code.value : null, { onWrong: wrongCode, onError: () => { btn.disabled = false; } });
     };
   }
+}
+
+// Resize a photo on the phone before upload: ~1280px JPEG + small thumbnail for the admin gallery.
+async function preparePhoto(file) {
+  const src = await loadImage(file);
+  const draw = (max, quality) => {
+    const w = src.width, h = src.height;
+    const scale = Math.min(1, max / Math.max(w, h));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * scale));
+    c.height = Math.max(1, Math.round(h * scale));
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', quality).split(',')[1];
+  };
+  let image = draw(1280, 0.82);
+  if (image.length > 850000) image = draw(1024, 0.7);
+  if (image.length > 850000) image = draw(800, 0.6);
+  return { image, thumb: draw(360, 0.7) };
+}
+function loadImage(file) {
+  if (window.createImageBitmap) {
+    return createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => loadImageEl(file));
+  }
+  return loadImageEl(file);
+}
+function loadImageEl(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    img.src = url;
+  });
 }
 
 // ─── in-page QR scanner ───

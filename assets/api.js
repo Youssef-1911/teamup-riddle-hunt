@@ -18,6 +18,10 @@ const SIGNATURES = {
   admin_reset_game: ['text'],
   admin_save_settings: ['text', 'jsonb'],
   admin_change_password: ['text', 'text'],
+  upload_photo: ['uuid', 'text', 'jsonb'],
+  admin_photos: ['text', 'bigint'],
+  admin_photo: ['text', 'bigint'],
+  admin_reject_photo: ['text', 'bigint'],
 };
 
 // The connection is stored in parts (see assets/config.js) and assembled here.
